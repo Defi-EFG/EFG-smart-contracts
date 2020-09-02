@@ -6,7 +6,7 @@ interface lendingInterface {
 * @param timestamp
 * @return rate
 */
-function getEcocRate(uint timestamp) view returns uint;
+function getEcocRate(uint timestamp) view returns (uint);
 
 /**
 * @notice set exchnage rate , 8 decimal places, only authorized oracle
@@ -14,35 +14,35 @@ function getEcocRate(uint timestamp) view returns uint;
 * @param rate
 * @return bool
 */
-function setEcocRate(uint rate, uint timestamp) modifier oracleOnly() returns bool;
+function setEcocRate(uint rate, uint timestamp) public oracleOnly() returns (bool);
 
 /**
 * @notice set interest rate , 4 decimal places, only contract owner
 * @param rate
 * @return bool
 */
-function setInterestRate(uint rate) returns bool;
+function setInterestRate(uint rate) public returns (bool);
 
 /**
 * @notice get interest rate, 4 decimal places
 * @param rate
 * @return bool
 */
-function getInterestRate() view returns uint;
+function getInterestRate() view returns (uint);
 
 /**
 * @notice set interest rate , 4 decimal places, only contract owner
 * @param rate
 * @return bool
 */
-function setCollateralRate(uint rate) modifier ownerOnly() returns bool;
+function setCollateralRate(uint rate) public ownerOnly() returns (bool);
 
 /**
 * @notice get interest rate, 4 decimal places
 * @param rate
 * @return bool
 */
-function getCollateralRate() view returns uint;
+function getCollateralRate() view returns (uint);
 
 /**
 * @notice Deposit collateral
@@ -77,6 +77,6 @@ function withdrawToken(uint amount) returns (bool);
 * @param amount of ECOC
 * @return bool
 */
-function marginCall(address debtor_addr, uint amount) modifier ownerOnly(),colletoralOffMargin() returns (bool);
+function marginCall(address debtor_addr, uint amount) ownerOnly() colletoralOffMargin() returns (bool);
 
 }
