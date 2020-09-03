@@ -1,10 +1,23 @@
-pragma solidity ^0.4.26;
+pragma solidity ^0.4.25;
 
 interface lendingInterface {
+
+modifier ownerOnly() {
+        _;
+    }
+
+modifier oracleOnly() {
+        _;
+    }
+
+modifier colletoralOffMargin()  {
+        _;
+    }
+
 /**
 * @notice get exchange rate , 8 decimal places
 * @param timestamp
-* @return rate
+* @return uint
 */
 function getEcocRate(uint timestamp) view returns (uint);
 
