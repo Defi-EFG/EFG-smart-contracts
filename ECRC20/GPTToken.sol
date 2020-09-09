@@ -21,7 +21,7 @@ contract GPTToken is IECRC20 {
 
     /**
      * @dev Sets the values for {name} and {symbol}, initializes {decimals} with
-     * a default value of 8 and total supply to 1 million
+     * a default value of 4 and total supply to 1 million
      * All tokens belong to the contract owner initially.
      * To select a different value for {decimals}, use {_setupDecimals}.
      */
