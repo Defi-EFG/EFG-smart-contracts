@@ -4,11 +4,12 @@
 
 pragma solidity ^0.4.26;
 
-import "../Interfaces/IERC20.sol";
-import "../Libraries/SafeMath.sol";
+import "./IECRC20.sol";
+import "./SafeMath.sol";
 
 
-contract EFGToken is IERC20 {
+
+contract EFGToken is IECRC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -57,33 +58,33 @@ contract EFGToken is IERC20 {
      * be displayed to a user as `5,05` (`505 / 10 ** 2`).
      *
      * Tokens usually opt for a value of 18, imitating the relationship between
-     * Ether and Wei. This is the value {ERC20} uses, unless {_setupDecimals} is
+     * Ether and Wei. This is the value {ECRC20} uses, unless {_setupDecimals} is
      * called.
      *
      * NOTE: This information is only used for _display_ purposes: it in
      * no way affects any of the arithmetic of the contract, including
-     * {IERC20-balanceOf} and {IERC20-transfer}.
+     * {IECRC20-balanceOf} and {IECRC20-transfer}.
      */
     function decimals() public view returns (uint8) {
         return _decimals;
     }
 
     /**
-     * @dev See {IERC20-totalSupply}.
+     * @dev See {IECRC20-totalSupply}.
      */
     function totalSupply() public view returns (uint256) {
         return _totalSupply;
     }
 
     /**
-     * @dev See {IERC20-balanceOf}.
+     * @dev See {IECRC20-balanceOf}.
      */
     function balanceOf(address account) public view returns (uint256) {
         return _balances[account];
     }
 
     /**
-     * @dev See {IERC20-transfer}.
+     * @dev See {IECRC20-transfer}.
      *
      * Requirements:
      *
@@ -96,14 +97,14 @@ contract EFGToken is IERC20 {
     }
 
     /**
-     * @dev See {IERC20-allowance}.
+     * @dev See {IECRC20-allowance}.
      */
     function allowance(address owner, address spender) public view returns (uint256) {
         return _allowances[owner][spender];
     }
 
     /**
-     * @dev See {IERC20-approve}.
+     * @dev See {IECRC20-approve}.
      *
      * Requirements:
      *
@@ -115,10 +116,10 @@ contract EFGToken is IERC20 {
     }
 
     /**
-     * @dev See {IERC20-transferFrom}.
+     * @dev See {IECRC20-transferFrom}.
      *
      * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20};
+     * required by the EIP. See the note at the beginning of {ECRC20};
      *
      * Requirements:
      * - `sender` and `recipient` cannot be the zero address.
@@ -128,7 +129,7 @@ contract EFGToken is IERC20 {
      */
     function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
         _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ECRC20: transfer amount exceeds allowance"));
         return true;
     }
 
@@ -136,7 +137,7 @@ contract EFGToken is IERC20 {
      * @dev Atomically increases the allowance granted to `spender` by the caller.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
+     * problems described in {IECRC20-approve}.
      *
      * Emits an {Approval} event indicating the updated allowance.
      *
@@ -153,7 +154,7 @@ contract EFGToken is IERC20 {
      * @dev Atomically decreases the allowance granted to `spender` by the caller.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
+     * problems described in {IECRC20-approve}.
      *
      * Emits an {Approval} event indicating the updated allowance.
      *
@@ -164,7 +165,7 @@ contract EFGToken is IERC20 {
      * `subtractedValue`.
      */
     function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ECRC20: decreased allowance below zero"));
         return true;
     }
 
@@ -183,12 +184,12 @@ contract EFGToken is IERC20 {
      * - `sender` must have a balance of at least `amount`.
      */
     function _transfer(address sender, address recipient, uint256 amount) internal {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(sender != address(0), "ECRC20: transfer from the zero address");
+        require(recipient != address(0), "ECRC20: transfer to the zero address");
 
         _beforeTokenTransfer(sender, recipient, amount);
 
-        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+        _balances[sender] = _balances[sender].sub(amount, "ECRC20: transfer amount exceeds balance");
         _balances[recipient] = _balances[recipient].add(amount);
         emit Transfer(sender, recipient, amount);
     }
@@ -203,7 +204,7 @@ contract EFGToken is IERC20 {
      * - `to` cannot be the zero address.
      */
     function _mint(address account, uint256 amount) internal {
-        require(account != address(0), "ERC20: mint to the zero address");
+        require(account != address(0), "ECRC20: mint to the zero address");
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -224,11 +225,11 @@ contract EFGToken is IERC20 {
      * - `account` must have at least `amount` tokens.
      */
     function _burn(address account, uint256 amount) internal {
-        require(account != address(0), "ERC20: burn from the zero address");
+        require(account != address(0), "ECRC20: burn from the zero address");
 
         _beforeTokenTransfer(account, address(0), amount);
 
-        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
+        _balances[account] = _balances[account].sub(amount, "ECRC20: burn amount exceeds balance");
         _totalSupply = _totalSupply.sub(amount);
         emit Transfer(account, address(0), amount);
     }
@@ -247,8 +248,8 @@ contract EFGToken is IERC20 {
      * - `spender` cannot be the zero address.
      */
     function _approve(address owner, address spender, uint256 amount) internal {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
+        require(owner != address(0), "ECRC20: approve from the zero address");
+        require(spender != address(0), "ECRC20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
