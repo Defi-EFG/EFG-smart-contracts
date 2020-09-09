@@ -8,7 +8,7 @@ import "./IECRC20.sol";
 import "./SafeMath.sol";
 
 
-contract EFGToken is IECRC20 {
+contract GPTToken is IECRC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -26,10 +26,10 @@ contract EFGToken is IECRC20 {
      * To select a different value for {decimals}, use {_setupDecimals}.
      */
     constructor () public {
-        _name = "Ecochain Financial Growth";
-        _symbol = "EFG";
-        _decimals = 8;
-        _totalSupply = 1e14;
+        _name = "Grace Period Token";
+        _symbol = "GPT";
+        _decimals = 4;
+        _totalSupply = 1e8;
         _balances[msg.sender] = _totalSupply;
     }
 
