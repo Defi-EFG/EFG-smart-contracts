@@ -8,33 +8,29 @@ import "./IECRC20.sol";
 import "./SafeMath.sol";
 
 
-
 contract EFGToken is IECRC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
-
     mapping (address => mapping (address => uint256)) private _allowances;
-
-    uint256 private _totalSupply;
 
     string private _name;
     string private _symbol;
     uint8 private _decimals;
+    uint256 private _totalSupply;
 
     /**
      * @dev Sets the values for {name} and {symbol}, initializes {decimals} with
-     * a default value of 18.
-     *
+     * a default value of 8 and total supply to 1 million
+     * All tokens belong to the contract owner initially.
      * To select a different value for {decimals}, use {_setupDecimals}.
-     *
-     * All three of these values are immutable: they can only be set once during
-     * construction.
      */
-    constructor (string memory name, string memory symbol) public {
-        _name = name;
-        _symbol = symbol;
-        _decimals = 18;
+    constructor () public {
+        _name = "Ecochain Financial Growth";
+        _symbol = "EFG";
+        _decimals = 8;
+        _totalSupply = 1e14;
+        _balances[msg.sender] = _totalSupply;
     }
 
     /**
