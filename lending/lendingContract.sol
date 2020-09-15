@@ -1,8 +1,8 @@
 pragma solidity ^0.4.25;
 
-import "./lendingInterface.sol"
+// import "./lendingInterface.sol"
 
-contract lendingContract is lendingInterface {
+contract lendingContract {
 
 address owner;
 mapping (address => bool) private oracles;
@@ -52,12 +52,11 @@ function authOracles(address _oracleAddr, bool _action) public ownerOnly() retur
     return true;
 }
 
-
 /**
 * @notice get exchange rate , 8 decimal places
 * @param symbol
 * @param timestamp
-* @return uint
+* @return uint - th exchange rate between EFG and the asset
 */
 function getEFGRates(string _symbol, uint _timestamp) view returns (uint) {
     return EFGRate[_symbol][_timestamp];
@@ -70,15 +69,15 @@ function getEFGRates(string _symbol, uint _timestamp) view returns (uint) {
 * @param rate
 * @return bool
 */
-function setEFGRate(string symbol, uint timestamp, uint rate) external oracleOnly() returns (bool){
+function setEFGRate(string _symbol, uint _timestamp, uint _rate) external oracleOnly() returns (bool){
     EFGRate[_symbol][_timestamp] = _rate;
     return true;
 }
 
 /**
 * @notice set interest rate , 8 decimal places, only contract owner
-* @param _symbol
-* @param _interestRate
+* @param symbol
+* @param interestRate
 * @return bool
 */
 function setInterestRate(string _symbol, uint _interestRate) external ownerOnly() returns (bool) {
@@ -88,7 +87,7 @@ function setInterestRate(string _symbol, uint _interestRate) external ownerOnly(
 
 /**
 * @notice get interest rate, 8 decimal places
-* @param _symbol
+* @param symbol
 * @return uint - the interest rate of the asset
 */
 function getInterestRate(string _symbol) view returns (uint) {
@@ -107,7 +106,6 @@ function setCollateralRate(uint _rate) public ownerOnly() returns (bool){
 
 /**
 * @notice get interest rate, 8 decimal places
-* @param rate
 * @return bool
 */
 function getCollateralRate() view returns (uint){
