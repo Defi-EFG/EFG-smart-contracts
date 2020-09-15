@@ -1,16 +1,15 @@
 pragma solidity ^0.4.25;
 
-// import "./lendingInterface.sol"
 
 contract lendingContract {
 
 address owner;
 mapping (address => bool) private oracles;
-mapping (string => mapping(uint256 => uint256)) private EFGRate;
-mapping (string => uint256) private InterestRate;
+mapping (string => mapping(uint256 => uint256)) private EFGRates;
+mapping (string => uint256) private interestRates;
 uint collateralRate;
 
-constructor() {
+constructor() public {
     owner = msg.sender;
 
     /* interestRate is the rate per block the borrow must pay back
@@ -19,7 +18,7 @@ constructor() {
     * 8 decimal places
     * rate per block = annual rate * 1e8 / 985500
     */
-    interestRate['ECOC'] = 1015 ;
+    interestRates['ECOC'] = 1015 ;
     
     /* Initial collateral rate is 25% , 2 decimal places. */
     collateralRate = 2500; /* 25% */
@@ -31,7 +30,7 @@ modifier ownerOnly() {
     }
 
 modifier oracleOnly() {
-    require(oracle[msg.sender]);
+    require(oracles[msg.sender]);
         _;
     }
 
@@ -43,8 +42,8 @@ modifier colletoralOffMargin()  {
     }
 /**
 * @notice add or purge oracles, only contract owner
-* @param oracleAddr - the address of the oracle to be add or remove
-* @param action - a boolean , if true add to list; else unauthorize
+* @param _oracleAddr - the address of the oracle to be add or remove
+* @param _action - a boolean , if true add to list; else unauthorize
 * @return a boolean , true on success
 */
 function authOracles(address _oracleAddr, bool _action) public ownerOnly() returns (bool) {
@@ -54,49 +53,49 @@ function authOracles(address _oracleAddr, bool _action) public ownerOnly() retur
 
 /**
 * @notice get exchange rate , 8 decimal places
-* @param symbol
-* @param timestamp
+* @param _symbol
+* @param _timestamp
 * @return uint - th exchange rate between EFG and the asset
 */
-function getEFGRates(string _symbol, uint _timestamp) view returns (uint) {
-    return EFGRate[_symbol][_timestamp];
+function getEFGRates(string _symbol, uint _timestamp) public view returns (uint) {
+    return EFGRates[_symbol][_timestamp];
 }
 
 /**
 * @notice set exchnage rate , 8 decimal places, only authorized oracle
-* @param symbol
-* @param timestamp 
-* @param rate
+* @param _symbol
+* @param _timestamp 
+* @param _rate
 * @return bool
 */
 function setEFGRate(string _symbol, uint _timestamp, uint _rate) external oracleOnly() returns (bool){
-    EFGRate[_symbol][_timestamp] = _rate;
+    EFGRates[_symbol][_timestamp] = _rate;
     return true;
 }
 
 /**
 * @notice set interest rate , 8 decimal places, only contract owner
-* @param symbol
-* @param interestRate
+* @param _symbol
+* @param _interestRate
 * @return bool
 */
 function setInterestRate(string _symbol, uint _interestRate) external ownerOnly() returns (bool) {
-    interestRate[_symbol] = _interestRate;
+    interestRates[_symbol] = _interestRate;
     return true;
 }
 
 /**
 * @notice get interest rate, 8 decimal places
-* @param symbol
+* @param _symbol
 * @return uint - the interest rate of the asset
 */
-function getInterestRate(string _symbol) view returns (uint) {
-    return interestRate[_symbol];
+function getInterestRate(string _symbol) public view returns (uint) {
+    return interestRates[_symbol];
 }
 
 /**
 * @notice set interest rate , 8 decimal places, only contract owner
-* @param rate
+* @param _rate
 * @return bool
 */
 function setCollateralRate(uint _rate) public ownerOnly() returns (bool){
@@ -108,7 +107,7 @@ function setCollateralRate(uint _rate) public ownerOnly() returns (bool){
 * @notice get interest rate, 8 decimal places
 * @return bool
 */
-function getCollateralRate() view returns (uint){
+function getCollateralRate() public view returns (uint){
     return collateralRate;
 }
 
@@ -138,7 +137,7 @@ function withdrawEcoc(uint amount) returns (bool);
 * @param amount of EFG
 * @return bool
 */
-function withdrawToken(uint amount) returns (bool);
+function withdrawEFG(uint amount) returns (bool);
 
 /**
 * @notice margin call, only by contract owner and only on condition that colletoral has fallen short
