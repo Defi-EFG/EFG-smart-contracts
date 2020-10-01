@@ -2,12 +2,22 @@ pragma solidity ^0.4.25;
 
 contract lendingContract {
     address owner;
-    mapping(address => bool) private oracles;
-    mapping(string => mapping(uint256 => uint256)) private EFGRates;
-    mapping(string => uint256) private interestRates;
+    uint256 secsInYear = 365*24*60*60;
     uint256 collateralRate;
+
+    mapping(address => bool) private oracles;
+    mapping(string => uint256) private EFGRates;
+    mapping(string => uint256) private interestRates;
     mapping(address => uint256) private ecocBalance;
     mapping(address => uint256) private collateral;
+
+    struct Loan {
+        uint amount;
+        uint timestamp;
+        uint interestRate;
+        uint xrate;
+    }
+    mapping(address => Loan) private debt;
 
     constructor() public {
         owner = msg.sender;
@@ -34,10 +44,21 @@ contract lendingContract {
         _;
     }
 
-    modifier colletoralOffMargin() {
+    modifier colletoralOffMargin(_debtors_addr) {
         require(msg.sender == owner);
         /* implement the check for margin call below */
-        require(false);
+        /* x0, xc, s, r, t0, tc
+            allow liquidation when:
+        xc< xo*s*(1+r(tc-t0)/(1 year in seconds))*/
+        Loan l = debt[_debtors_addr];
+        uint256 x0 = l.xrate;
+        uint256 xc = getEFGRates('ECOC');
+        uint256 s = collateralRate;
+        uint256 r = l.interestRate;
+        uint256 t0 = l.timestamp;
+        uint256 tc = block.timestamp;
+
+        require(xc<s*x0*(1+(r*(tc-t0)/secsInYear))); /* todo: include the decimal places in calculation*/
         _;
     }
 
@@ -59,30 +80,27 @@ contract lendingContract {
     /*
      * @notice get exchange rate , 8 decimal places
      * @param _symbol
-     * @param _timestamp
-     * @return uint - th exchange rate between EFG and the asset
+     * @return uint - the exchange rate between EFG and the asset
      */
-    function getEFGRates(string _symbol, uint256 _timestamp)
+    function getEFGRates(string _symbol)
         public
         view
         returns (uint256)
     {
-        return EFGRates[_symbol][_timestamp];
+        return EFGRates[_symbol];
     }
 
     /*
      * @notice set exchnage rate , 8 decimal places, only authorized oracle
      * @param _symbol
-     * @param _timestamp
      * @param _rate
      * @return bool
      */
     function setEFGRate(
         string _symbol,
-        uint256 _timestamp,
         uint256 _rate
     ) external oracleOnly() returns (bool) {
-        EFGRates[_symbol][_timestamp] = _rate;
+        EFGRates[_symbol] = _rate;
         return true;
     }
 
@@ -155,6 +173,23 @@ contract lendingContract {
         require(_amount >= 0);
         require(_amount <= ecocBalance[msg.sender]);
         collateral[msg.sender] += _amount;
+
+        Loan storage l = debt[msg.sender];
+        uint interest = l*l.interestRate;
+        l.xrate = EFGRates['ECOC'];
+        l.amount += _amount * l.xrate;
+        l.timestamp += block.timestamp;
+        l.interestRate = getInterestRate('ECOC');
+        return true;
+    }
+
+    /*
+     * @notice get EFG amount of debt
+     * @param _debtor
+     * @return uint - the EFG amount without the interest
+     */
+    function getDebt(address _debtor) public view returns (uint256) {
+        return debt[_debtor];
     }
 
     /*
@@ -170,10 +205,11 @@ contract lendingContract {
      * @return bool
      */
     function withdrawEcoc(uint256 _amount) external returns (bool) {
-        require(_amount >= 0);
+        require(_amount > 0);
         require(_amount <= ecocBalance[msg.sender]);
         ecocBalance[msg.sender] -= msg.value;
         address.(this).send(_amount);
+        return true;
     }
 
     /*
