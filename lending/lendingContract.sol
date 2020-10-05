@@ -166,6 +166,9 @@ contract lendingContract {
         require(msg.value > 0);
         ecocBalance[msg.sender] += msg.value;
         if (_lock != 0) {
+            if (_lock > msg.value) {
+                _lock = msg.value;
+            }
             lockECOC(_lock);
         }
         return true;
