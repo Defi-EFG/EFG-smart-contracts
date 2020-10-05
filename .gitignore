@@ -1,2 +1,5 @@
 *~
+testnet-*
+.env
+node_modules/
 

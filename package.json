@@ -1,0 +1,22 @@
+{
+  "name": "efg",
+  "version": "1.0.0",
+  "description": "EFG smart contracts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Defi-EFG/EFG-snart-contracts.git"
+  },
+  "author": "akis",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/Defi-EFG/EFG-snart-contracts/issues"
+  },
+  "homepage": "https://github.com/Defi-EFG/EFG-snart-contracts#readme",
+  "dependencies": {
+    "ecoweb3": "^1.1.2"
+  }
+}
