@@ -16,11 +16,11 @@ contract lendingContract {
 
 
     struct Loan {
-        uint amount;
-        uint timestamp;
-        uint interestRate;
-        uint xrate;
-        uint interest;
+        uint amount;          /* in EFG */
+        uint timestamp;       /* timestamp of last update (creation, topup or repay) */
+        uint interestRate;    /* last interast rate in EFG */
+        uint xrate;           /* last exchange rate EFG/USDT */
+        uint interest;        /* accumilated interest */
     }
     mapping(address => Loan) private debt;
 
@@ -179,6 +179,7 @@ contract lendingContract {
     function lockECOC(uint256 _amount) public returns (bool) {
         require(_amount >= 0);
         require(_amount <= ecocBalance[msg.sender]);
+	    ecocBalance[msg.sender] -= _amount;
         collateral[msg.sender] += _amount;
 
         Loan storage l = debt[msg.sender];
@@ -198,7 +199,11 @@ contract lendingContract {
      * @return uint - the EFG amount without the interest
      */
     function getDebt(address _debtor) public view returns (uint256) {
-        return debt[_debtor].amount;
+        Loan memory d = debt[_debtor];
+    	uint totalDebt = d.amount + d.interest;
+    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate('ECOC') ) / 100 ;
+    	totalDebt += lastInterest;
+        return totalDebt;
     }
 
     /*
