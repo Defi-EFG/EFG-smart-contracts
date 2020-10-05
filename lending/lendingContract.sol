@@ -1,7 +1,9 @@
-pragma solidity ^0.4.25;
+pragma solidity 0.4.26;
 
 contract lendingContract {
     address owner;
+    address EFGContract;
+    address GPTContract;
     uint256 secsInYear = 365*24*60*60;
     uint256 collateralRate;
 
@@ -10,17 +12,22 @@ contract lendingContract {
     mapping(string => uint256) private interestRates;
     mapping(address => uint256) private ecocBalance;
     mapping(address => uint256) private collateral;
+    mapping(address => uint256) private EFGBalance;
+
 
     struct Loan {
         uint amount;
         uint timestamp;
         uint interestRate;
         uint xrate;
+        uint interest;
     }
     mapping(address => Loan) private debt;
 
     constructor() public {
         owner = msg.sender;
+        //EFGContract = '0x...';
+        //GPTContract = '0x...';
 
         /* interestRate is the rate per block the borrow must pay back
          * Initial rate is 10% per year
@@ -44,13 +51,13 @@ contract lendingContract {
         _;
     }
 
-    modifier colletoralOffMargin(_debtors_addr) {
+    modifier colletoralOffMargin(address _debtors_addr) {
         require(msg.sender == owner);
         /* implement the check for margin call below */
         /* x0, xc, s, r, t0, tc
             allow liquidation when:
         xc< xo*s*(1+r(tc-t0)/(1 year in seconds))*/
-        Loan l = debt[_debtors_addr];
+        Loan storage l = debt[_debtors_addr];
         uint256 x0 = l.xrate;
         uint256 xc = getEFGRates('ECOC');
         uint256 s = collateralRate;
@@ -175,11 +182,13 @@ contract lendingContract {
         collateral[msg.sender] += _amount;
 
         Loan storage l = debt[msg.sender];
-        uint interest = l*l.interestRate;
+        //uint interest = l*l.interestRate;
         l.xrate = EFGRates['ECOC'];
         l.amount += _amount * l.xrate;
         l.timestamp += block.timestamp;
         l.interestRate = getInterestRate('ECOC');
+
+        EFGBalance[msg.sender] += _amount * collateralRate;
         return true;
     }
 
@@ -189,7 +198,7 @@ contract lendingContract {
      * @return uint - the EFG amount without the interest
      */
     function getDebt(address _debtor) public view returns (uint256) {
-        return debt[_debtor];
+        return debt[_debtor].amount;
     }
 
     /*
@@ -197,35 +206,39 @@ contract lendingContract {
      * @param amount of EFG to be payed back
      * @return bool
      */
-    function payback(uint256 amount) returns (bool);
+    function payback(uint256 amount) external returns (bool);
 
     /*
      * @notice withdraw ECOC
      * @param _amount of ECOC to be withdrawn
      * @return bool
      */
-    function withdrawEcoc(uint256 _amount) external returns (bool) {
+    function withdrawEcoc(uint256 _amount, address _beneficiaries_addr) external payable returns (bool) {
         require(_amount > 0);
         require(_amount <= ecocBalance[msg.sender]);
         ecocBalance[msg.sender] -= msg.value;
-        address.(this).send(_amount);
+        _beneficiaries_addr.transfer(_amount);
         return true;
     }
 
     /*
      * @notice withdraw EFG
-     * @param amount of EFG
+     * @param _amount of EFG
      * @return bool
      */
-    function withdrawEFG(uint256 amount) returns (bool);
+    function withdrawEFG(uint256 _amount) external returns (bool) {
+        require (_amount > 0);
+        require (EFGBalance[msg.sender] >= _amount);
+
+    }
 
     /*
      * @notice margin call, only by contract owner and only on condition that colletoral has fallen short
      * @param amount of ECOC
      * @return bool
      */
-    function marginCall(address debtor_addr, uint256 amount)
+    function marginCall(address _debtor_addr, uint256 amount) internal
         ownerOnly()
-        colletoralOffMargin()
+        colletoralOffMargin(_debtor_addr)
         returns (bool);
 }
