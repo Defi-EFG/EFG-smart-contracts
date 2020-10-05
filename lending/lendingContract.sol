@@ -179,17 +179,23 @@ contract lendingContract {
     function lockECOC(uint256 _amount) public returns (bool) {
         require(_amount >= 0);
         require(_amount <= ecocBalance[msg.sender]);
-	    ecocBalance[msg.sender] -= _amount;
+        
+	ecocBalance[msg.sender] -= _amount;
         collateral[msg.sender] += _amount;
 
-        Loan storage l = debt[msg.sender];
-        //uint interest = l*l.interestRate;
+        Loan memory l = debt[msg.sender];
+        /* update interest */
+        uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (100 * secsInYear);
+        l.interest += lastInterest;
+        
+        /* update system parameters */
         l.xrate = EFGRates['ECOC'];
-        l.amount += _amount * l.xrate;
-        l.timestamp += block.timestamp;
         l.interestRate = getInterestRate('ECOC');
-
-        EFGBalance[msg.sender] += _amount * collateralRate;
+        
+        l.timestamp = block.timestamp;
+        uint EFGAmount = _amount * collateralRate * l.xrate;
+        l.amount += EFGAmount;
+        EFGBalance[msg.sender] += EFGAmount;
         return true;
     }
 
@@ -201,7 +207,7 @@ contract lendingContract {
     function getDebt(address _debtor) public view returns (uint256) {
         Loan memory d = debt[_debtor];
     	uint totalDebt = d.amount + d.interest;
-    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate('ECOC') ) / 100 ;
+    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate('ECOC') ) / (100 * secsInYear);
     	totalDebt += lastInterest;
         return totalDebt;
     }
