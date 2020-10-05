@@ -19,7 +19,7 @@ contract lendingContract {
         uint amount;          /* in EFG */
         uint timestamp;       /* timestamp of last update (creation, topup or repay) */
         uint interestRate;    /* last interast rate in EFG */
-        uint xrate;           /* last exchange rate EFG/USDT */
+        uint xrate;           /* last exchange rate EFG/ECOC */
         uint interest;        /* accumilated interest */
     }
     mapping(address => Loan) private debt;
@@ -165,11 +165,12 @@ contract lendingContract {
     function depositECOC(uint256 _lock) external payable returns (bool) {
         require(msg.value > 0);
         ecocBalance[msg.sender] += msg.value;
+        uint256 lock = _lock;
         if (_lock != 0) {
-            if (_lock > msg.value) {
-                _lock = msg.value;
+            if (lock > msg.value) {
+                lock = msg.value;
             }
-            lockECOC(_lock);
+            lockECOC(lock);
         }
         return true;
     }
@@ -183,10 +184,10 @@ contract lendingContract {
         require(_amount >= 0);
         require(_amount <= ecocBalance[msg.sender]);
         
-	ecocBalance[msg.sender] -= _amount;
+        ecocBalance[msg.sender] -= _amount;
         collateral[msg.sender] += _amount;
 
-        Loan memory l = debt[msg.sender];
+        Loan storage l = debt[msg.sender];
         /* update interest */
         uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (100 * secsInYear);
         l.interest += lastInterest;
@@ -217,10 +218,41 @@ contract lendingContract {
 
     /*
      * @notice fully or partially payback ECOC
-     * @param amount of EFG to be payed back
+     * @param _amount of EFG to be payed back
      * @return bool
      */
-    function payback(uint256 amount) external returns (bool);
+    function payback(uint256 _amount) external returns (bool) {
+        require (_amount > 0);
+        require (_amount <= EFGBalance[msg.sender]);
+        
+        Loan storage d = debt[msg.sender];
+        uint256 col = collateral[msg.sender];
+        
+        if (_amount <= d.interest) {
+            /* repay the interest first */
+            d.interest -= _amount;
+            EFGBalance[msg.sender] -= _amount;
+            return true;
+        }
+        
+        /* repay amount is greater than interest, decrease the loan */
+        uint256 amountLeft = _amount - d.interest;
+        d.interest = 0;
+        if (d.amount > amountLeft) {
+            d.amount -= amountLeft;
+            EFGBalance[msg.sender] -= _amount;
+            d.amount -= amountLeft;
+            return true;
+        } else {
+            /* loan repayd in full release the collateral */
+            amountLeft -=d.amount;
+            d.amount = 0;
+            EFGBalance[msg.sender] -= (_amount + amountLeft) ;
+            ecocBalance[msg.sender] += collateral[msg.sender] ;
+            collateral[msg.sender] = 0 ;
+            return true;
+        }
+    }
 
     /*
      * @notice withdraw ECOC
