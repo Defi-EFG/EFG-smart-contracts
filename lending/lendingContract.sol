@@ -51,19 +51,10 @@ contract lendingContract {
 
     modifier canSeize(address _debtors_addr) {
         require(msg.sender == owner);
-        /* implement the check for margin call below */
-        /* x0, xc, s, r, t0, tc
-            allow liquidation when:
-        xc< xo*s*(1+r(tc-t0)/(1 year in seconds))*/
-        Loan storage l = debt[_debtors_addr];
-        uint256 x0 = l.xrate;
-        uint256 xc = getEFGRates('ECOC');
-        uint256 s = collateralRate;
-        uint256 r = l.interestRate;
-        uint256 t0 = l.timestamp;
-        uint256 tc = block.timestamp;
-
-        require(xc<s*x0*(1+(r*(tc-t0)/secsInYear))); /* todo: include the decimal places in calculation*/
+	
+	uint totalDebt = getDebt[_debtors_addr];
+	uint collateralValue = (collateral[_debtors_addr] * EFGRates['ECOC']) / 1e8; /* rate has 8 decimal places */
+	require(totalDebt > collateralValue);
         _;
     }
 
