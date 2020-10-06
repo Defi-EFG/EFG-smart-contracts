@@ -23,10 +23,10 @@ contract lendingContract {
     }
     mapping(address => Loan) private debt;
 
-    constructor() public {
+    constructor(address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
-        //EFGContract = '0x...';
-        //GPTContract = '0x...';
+        EFGContract = _EFG_addr; /* smart contract address of EFG */
+        GPTContract = _GPT_addr; /* smart contract address of GPT */
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
@@ -187,7 +187,7 @@ contract lendingContract {
         l.xrate = EFGRates['ECOC'];
         l.interestRate = getInterestRate('ECOC');        
         l.timestamp = block.timestamp;
-        uint EFGAmount = _amount * collateralRate * l.xrate;
+        uint EFGAmount = _amount * collateralRate * l.xrate; /* todo: precision */
         l.amount += EFGAmount;
 	
         EFGBalance[msg.sender] += EFGAmount;
