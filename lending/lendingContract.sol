@@ -52,9 +52,9 @@ contract lendingContract {
     modifier canSeize(address _debtors_addr) {
         require(msg.sender == owner);
 	
-	uint totalDebt = getDebt[_debtors_addr];
-	uint collateralValue = (collateral[_debtors_addr] * EFGRates['ECOC']) / 1e8; /* rate has 8 decimal places */
-	require(totalDebt > collateralValue);
+        uint totalDebt = getDebt(_debtors_addr);
+        uint collateralValue = (collateral[_debtors_addr] * EFGRates['ECOC']) / 1e8; /* rate has 8 decimal places */
+        require(totalDebt > collateralValue);
         _;
     }
 
@@ -93,9 +93,9 @@ contract lendingContract {
      * @return bool
      */
     function setEFGRate(
-        string _symbol,
-        uint256 _rate
-    ) external oracleOnly() returns (bool) {
+			string _symbol,
+			uint256 _rate
+			) external oracleOnly() returns (bool) {
         EFGRates[_symbol] = _rate;
         return true;
     }
@@ -218,7 +218,6 @@ contract lendingContract {
         require (_amount <= EFGBalance[msg.sender]);
         
         Loan storage d = debt[msg.sender];
-        uint256 col = collateral[msg.sender];
         
         if (_amount <= d.interest) {
             /* repay the interest first */
@@ -289,7 +288,7 @@ contract lendingContract {
 	l.timestamp = 0;
 	l.interestRate = 0;
 	l.xrate =
-	l.interest =0;
+	    l.interest =0;
 
 	return true;
     }
