@@ -29,13 +29,11 @@ contract lendingContract {
         //EFGContract = '0x...';
         //GPTContract = '0x...';
 
-        /* interestRate is the rate per block the borrow must pay back
+        /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
-         * Expect blocks per year is 985500
-         * 8 decimal places
-         * rate per block = annual rate * 1e8 / 985500
+         * 2 decimal places (10.00)
          */
-        interestRates["ECOC"] = 1015;
+        interestRates["ECOC"] = 1000;
 
         /* Initial collateral rate is 25% , 2 decimal places. */
         collateralRate = 2500; /* 25% */
