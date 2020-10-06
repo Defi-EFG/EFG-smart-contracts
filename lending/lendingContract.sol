@@ -242,11 +242,10 @@ contract lendingContract {
         if (d.amount > amountLeft) {
             d.amount -= amountLeft;
             EFGBalance[msg.sender] -= _amount;
-            d.amount -= amountLeft;
             return true;
         } else {
-            /* loan repayd in full release the collateral */
-            amountLeft -=d.amount;
+            /* loan repayed in full, release the collateral */
+            amountLeft -= d.amount;
             d.amount = 0;
             EFGBalance[msg.sender] -= (_amount + amountLeft) ;
             ecocBalance[msg.sender] += collateral[msg.sender] ;
@@ -263,7 +262,7 @@ contract lendingContract {
     function withdrawEcoc(uint256 _amount, address _beneficiaries_addr) external payable returns (bool) {
         require(_amount > 0);
         require(_amount <= ecocBalance[msg.sender]);
-        ecocBalance[msg.sender] -= msg.value;
+        ecocBalance[msg.sender] -= _amount;
         _beneficiaries_addr.transfer(_amount);
         return true;
     }
