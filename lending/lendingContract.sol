@@ -110,7 +110,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice set interest rate , 8 decimal places, only contract owner
+     * @notice set interest rate , 2 decimal places, only contract owner
      * @param _symbol
      * @param _interestRate
      * @return bool
@@ -125,7 +125,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice get interest rate, 8 decimal places
+     * @notice get interest rate, 2 decimal places
      * @param _symbol
      * @return uint - the interest rate of the asset
      */
@@ -134,7 +134,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice set interest rate , 8 decimal places, only contract owner
+     * @notice set collateral rate , 2 decimal places, only contract owner
      * @param _rate
      * @return bool
      */
@@ -143,12 +143,15 @@ contract lendingContract {
         ownerOnly()
         returns (bool)
     {
+        /* rate shoude be in range (0-100%) */
+        require (_rate > 0);
+        require (_rate < 10000);
         collateralRate = _rate;
         return true;
     }
 
     /*
-     * @notice get interest rate, 8 decimal places
+     * @notice get collateral rate, 2 decimal places
      * @return bool
      */
     function getCollateralRate() public view returns (uint256) {
@@ -165,8 +168,8 @@ contract lendingContract {
         ecocBalance[msg.sender] += msg.value;
         uint256 lock = _lock;
         if (_lock != 0) {
-            if (lock > msg.value) {
-                lock = msg.value;
+            if (lock > ecocBalance[msg.sender]) {
+                lock = ecocBalance[msg.sender];
             }
             lockECOC(lock);
         }
@@ -187,16 +190,16 @@ contract lendingContract {
 
         Loan storage l = debt[msg.sender];
         /* update interest */
-        uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (100 * secsInYear);
+        uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (secsInYear * 1e4); /* rate is in % and has 2 decimal places*/
         l.interest += lastInterest;
         
-        /* update system parameters */
+        /* update loan info */
         l.xrate = EFGRates['ECOC'];
-        l.interestRate = getInterestRate('ECOC');
-        
+        l.interestRate = getInterestRate('ECOC');        
         l.timestamp = block.timestamp;
         uint EFGAmount = _amount * collateralRate * l.xrate;
         l.amount += EFGAmount;
+	
         EFGBalance[msg.sender] += EFGAmount;
         return true;
     }
@@ -209,7 +212,7 @@ contract lendingContract {
     function getDebt(address _debtor) public view returns (uint256) {
         Loan memory d = debt[_debtor];
     	uint totalDebt = d.amount + d.interest;
-    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate('ECOC') ) / (100 * secsInYear);
+    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate('ECOC') ) / (secsInYear * 1e4);
     	totalDebt += lastInterest;
         return totalDebt;
     }
