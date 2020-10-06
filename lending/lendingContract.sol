@@ -5,15 +5,14 @@ contract lendingContract {
     address EFGContract;
     address GPTContract;
     uint256 secsInYear = 365*24*60*60;
-    uint256 collateralRate;
+    uint256 collateralRate; /* 2 decimal places */
 
     mapping(address => bool) private oracles;
-    mapping(string => uint256) private EFGRates;
-    mapping(string => uint256) private interestRates;
-    mapping(address => uint256) private ecocBalance;
-    mapping(address => uint256) private collateral;
-    mapping(address => uint256) private EFGBalance;
-
+    mapping(string => uint256) private EFGRates; /* 8 decimal places */
+    mapping(string => uint256) private interestRates; /* 2 decimal places */
+    mapping(address => uint256) private ecocBalance; /* 8 decimal places */
+    mapping(address => uint256) private collateral; /* 8 decimal places */
+    mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
     struct Loan {
         uint amount;          /* in EFG */
@@ -26,8 +25,8 @@ contract lendingContract {
 
     constructor() public {
         owner = msg.sender;
-        //address private constant EFG = '0x...';
-        //address private constant GPT = '0x...';
+        //EFGContract = '0x...';
+        //GPTContract = '0x...';
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
