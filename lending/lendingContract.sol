@@ -26,8 +26,8 @@ contract lendingContract {
 
     constructor() public {
         owner = msg.sender;
-        //EFGContract = '0x...';
-        //GPTContract = '0x...';
+        //address private constant EFG = '0x...';
+        //address private constant GPT = '0x...';
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
@@ -36,7 +36,7 @@ contract lendingContract {
         interestRates["ECOC"] = 1000;
 
         /* Initial collateral rate is 25% , 2 decimal places. */
-        collateralRate = 2500; /* 25% */
+        collateralRate = 2500;
     }
 
     modifier ownerOnly() {
@@ -49,7 +49,7 @@ contract lendingContract {
         _;
     }
 
-    modifier colletoralOffMargin(address _debtors_addr) {
+    modifier canSeize(address _debtors_addr) {
         require(msg.sender == owner);
         /* implement the check for margin call below */
         /* x0, xc, s, r, t0, tc
@@ -275,16 +275,31 @@ contract lendingContract {
     function withdrawEFG(uint256 _amount) external returns (bool) {
         require (_amount > 0);
         require (EFGBalance[msg.sender] >= _amount);
-
+	EFGBalance[msg.sender] -= _amount;
+	/* send the tokens */
+	EFG.transfer(msg.sender, _amount);
+	return true;
     }
 
     /*
-     * @notice margin call, only by contract owner and only on condition that colletoral has fallen short
-     * @param amount of ECOC
+     * @notice margin call, only by contract owner and only on the condition that collateral has fallen short
+     * @param _debtors_addr
      * @return bool
      */
-    function marginCall(address _debtor_addr, uint256 amount) internal
+    function marginCall(address _debtors_addr) external
         ownerOnly()
-        colletoralOffMargin(_debtor_addr)
-        returns (bool);
+        canSeize(_debtors_addr)
+        returns (bool) {
+	/* seize the collateral */
+	collateral[_debtors_addr] = 0;
+	/* reset the loan data */
+	Loan storage l = debt[_debtors_addr];
+	l.amount = 0;
+	l.timestamp = 0;
+	l.interestRate = 0;
+	l.xrate =
+	l.interest =0;
+
+	return true;
+    }
 }
