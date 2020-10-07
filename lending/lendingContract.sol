@@ -7,6 +7,9 @@ contract lendingContract {
     address owner;
     EFGToken EFG;
     GPTToken GPT;
+    // ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
+    bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
+    address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
     uint256 secsInYear = 365*24*60*60;
 
     mapping(address => bool) private oracles;
@@ -14,7 +17,7 @@ contract lendingContract {
     mapping(bytes8 => uint256) private EFGRates; /* 8 decimal places */
     mapping(bytes8 => uint256) private interestRates; /* 4 decimal places */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
-    mapping(address => uint256) private collateral; /* 8 decimal places */
+    mapping(address => mapping(bytes8 => uint256)) private collateral; /* 8 decimal places (same as balance) */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
     struct Loan {
@@ -55,9 +58,30 @@ contract lendingContract {
         require(msg.sender == owner);
 	
         uint totalDebt = getDebt(_debtors_addr);
-        uint collateralValue = (collateral[_debtors_addr] * EFGRates["ECOC"]) / 1e8; /* rate has 8 decimal places */
+        uint collateralValue = (collateral[_debtors_addr]["ECOC"] * EFGRates["ECOC"]) / 1e6; /* rate has 6 decimal places */
+	uint assetValue;
+	// compute the current value of all assets
+	for (uint i = 0; i < assetName.length ; i++) {
+	    assetValue = (collateral[_debtors_addr][assetName[i]] * EFGRates[assetName[i]]) / 1e6;
+	    collateralValue += assetValue;
+	}
         require(totalDebt > collateralValue);
         _;
+    }
+
+
+    /*
+     * @notice add new asset, only contract owner
+     * @param _symbol - the symbol of the asset
+     * @param  _contract_addr - smart contract address of the ECRC20
+     * @return an uint256 , the current number of ECRC20
+     */
+    function addNewAsset(bytes8 _symbol, address _contract_addr) external ownerOnly() returns (uint) {
+	assetName.push(_symbol);
+	assetAddress.push(_contract_addr);
+	// ECRC20 newToken = ECRC20(_contract_addr);
+	// asset.push(newToken);
+	return assetAddress.length;
     }
 
     /*
@@ -181,7 +205,7 @@ contract lendingContract {
         require(_amount <= balance[msg.sender]["ECOC"]);
         
         balance[msg.sender]["ECOC"] -= _amount;
-        collateral[msg.sender] += _amount;
+        collateral[msg.sender]["ECOC"] += _amount;
 
         Loan storage l = debt[msg.sender];
         /* update interest */
@@ -249,8 +273,13 @@ contract lendingContract {
             amountLeft -= d.amount;
             d.amount = 0;
             EFGBalance[msg.sender] -= (_amount + amountLeft) ;
-            balance[msg.sender]["ECOC"] += collateral[msg.sender] ;
-            collateral[msg.sender] = 0 ;
+            balance[msg.sender]["ECOC"] += collateral[msg.sender]["ECOC"];
+	    collateral[msg.sender]["ECOC"] = 0 ;
+	    // also release all other assets
+	    for (uint i = 0; i < assetName.length ; i++) {
+		balance[msg.sender][assetName[i]] += collateral[msg.sender][assetName[i]];
+		collateral[msg.sender][assetName[i]] = 0;
+	    }
             return true;
         }
     }
@@ -292,7 +321,11 @@ contract lendingContract {
         canSeize(_debtors_addr)
         returns (bool) {
 	/* seize the collateral */
-	collateral[_debtors_addr] = 0;
+	collateral[_debtors_addr]["ECOC"] = 0;
+	// also seize all other assets
+	for (uint i = 0; i < assetName.length ; i++) {
+	    collateral[_debtors_addr][assetName[i]] = 0;
+	}
 	/* reset the loan data */
 	Loan storage l = debt[_debtors_addr];
 	l.amount = 0;
