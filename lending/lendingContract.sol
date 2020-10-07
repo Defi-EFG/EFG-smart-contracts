@@ -8,9 +8,9 @@ contract lendingContract {
     EFGToken EFG;
     GPTToken GPT;
     uint256 secsInYear = 365*24*60*60;
-    uint256 collateralRate; /* 2 decimal places */
 
     mapping(address => bool) private oracles;
+    mapping(string => uint256) private collateralRates; /* 2 decimal places */
     mapping(string => uint256) private EFGRates; /* 8 decimal places */
     mapping(string => uint256) private interestRates; /* 2 decimal places */
     mapping(address => uint256) private ecocBalance; /* 8 decimal places */
@@ -37,8 +37,8 @@ contract lendingContract {
          */
         interestRates["ECOC"] = 1000;
 
-        /* Initial collateral rate is 25% , 2 decimal places. */
-        collateralRate = 2500;
+        /* Initial collateral rate of ECOC is 25% , 2 decimal places. */
+        collateralRates["ECOC"] = 2500;
     }
 
     modifier ownerOnly() {
@@ -55,7 +55,7 @@ contract lendingContract {
         require(msg.sender == owner);
 	
         uint totalDebt = getDebt(_debtors_addr);
-        uint collateralValue = (collateral[_debtors_addr] * EFGRates['ECOC']) / 1e8; /* rate has 8 decimal places */
+        uint collateralValue = (collateral[_debtors_addr] * EFGRates["ECOC"]) / 1e8; /* rate has 8 decimal places */
         require(totalDebt > collateralValue);
         _;
     }
@@ -128,10 +128,11 @@ contract lendingContract {
 
     /*
      * @notice set collateral rate , 2 decimal places, only contract owner
+     * @param _symbol
      * @param _rate
      * @return bool
      */
-    function setCollateralRate(uint256 _rate)
+    function setCollateralRate(string _symbol, uint256 _rate)
         public
         ownerOnly()
         returns (bool)
@@ -139,16 +140,17 @@ contract lendingContract {
         /* rate shoude be in range (0-100%) */
         require (_rate > 0);
         require (_rate < 10000);
-        collateralRate = _rate;
+        collateralRates[_symbol] = _rate;
         return true;
     }
 
     /*
      * @notice get collateral rate, 2 decimal places
+     * @param _symbol
      * @return bool
      */
-    function getCollateralRate() public view returns (uint256) {
-        return collateralRate;
+    function getCollateralRate(string _symbol) public view returns (uint256) {
+        return collateralRates[_symbol];
     }
 
     /*
@@ -187,10 +189,10 @@ contract lendingContract {
         l.interest += lastInterest;
         
         /* update loan info */
-        l.xrate = EFGRates['ECOC'];
-        l.interestRate = getInterestRate('ECOC');        
+        l.xrate = EFGRates["ECOC"];
+        l.interestRate = getInterestRate("ECOC");        
         l.timestamp = block.timestamp;
-        uint EFGAmount = _amount * collateralRate * l.xrate; /* todo: precision */
+        uint EFGAmount = _amount * collateralRates["ECOC"] * l.xrate; /* todo: precision */
         l.amount += EFGAmount;
 	
         EFGBalance[msg.sender] += EFGAmount;
@@ -205,7 +207,7 @@ contract lendingContract {
     function getDebt(address _debtor) public view returns (uint256) {
         Loan memory d = debt[_debtor];
     	uint totalDebt = d.amount + d.interest;
-    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate('ECOC') ) / (secsInYear * 1e4);
+    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate("ECOC") ) / (secsInYear * 1e4);
     	totalDebt += lastInterest;
         return totalDebt;
     }
