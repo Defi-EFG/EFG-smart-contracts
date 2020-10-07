@@ -28,8 +28,8 @@ contract lendingContract {
 
     constructor(address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
-	EFGToken EFG = EFGToken(_EFG_addr); /* smart contract address of EFG */
-	GPTToken GPT = GPTToken(_GPT_addr); /* smart contract address of GPT */
+	EFG = EFGToken(_EFG_addr); /* smart contract address of EFG */
+	GPT = GPTToken(_GPT_addr); /* smart contract address of GPT */
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
@@ -298,9 +298,18 @@ contract lendingContract {
 	l.amount = 0;
 	l.timestamp = 0;
 	l.interestRate = 0;
-	l.xrate =
-	    l.interest =0;
+	l.xrate = 0;
+	l.interest =0;
 
 	return true;
+    }
+
+    /*
+     * @notice display EFG balance
+     * @param _address beneficiar's address
+     * @return uint256
+     */
+    function getEFGBalance(address _address) external view returns (uint256){
+        return EFGBalance[_address];
     }
 }
