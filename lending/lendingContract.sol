@@ -10,19 +10,19 @@ contract lendingContract {
     uint256 secsInYear = 365*24*60*60;
 
     mapping(address => bool) private oracles;
-    mapping(string => uint256) private collateralRates; /* 2 decimal places */
+    mapping(string => uint256) private collateralRates; /* 4 decimal places */
     mapping(string => uint256) private EFGRates; /* 8 decimal places */
-    mapping(string => uint256) private interestRates; /* 2 decimal places */
+    mapping(string => uint256) private interestRates; /* 4 decimal places */
     mapping(address => uint256) private ecocBalance; /* 8 decimal places */
     mapping(address => uint256) private collateral; /* 8 decimal places */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
     struct Loan {
-        uint amount;          /* in EFG */
+        uint amount;          /* in EFG , 8 digits */
         uint timestamp;       /* timestamp of last update (creation, topup or repay) */
-        uint interestRate;    /* last interast rate in EFG */
-        uint xrate;           /* last exchange rate EFG/ECOC */
-        uint interest;        /* accumilated interest */
+        uint interestRate;    /* last interast rate in EFG , 6 digits */
+        uint xrate;           /* last exchange rate EFG/ECOC , 6 digits */
+        uint interest;        /* accumilated interest , 8 digits */
     }
     mapping(address => Loan) private debt;
 
@@ -33,11 +33,11 @@ contract lendingContract {
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
-         * 2 decimal places (10.00)
+         * 4 decimal places (1,000/10,000=0.1=10%)
          */
         interestRates["ECOC"] = 1000;
 
-        /* Initial collateral rate of ECOC is 25% , 2 decimal places. */
+        /* Initial collateral rate of ECOC is 25% , 4 decimal places. */
         collateralRates["ECOC"] = 2500;
     }
 
@@ -103,7 +103,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice set interest rate , 2 decimal places, only contract owner
+     * @notice set interest rate , 4 decimal places, only contract owner
      * @param _symbol
      * @param _interestRate
      * @return bool
@@ -118,7 +118,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice get interest rate, 2 decimal places
+     * @notice get interest rate, 4 decimal places
      * @param _symbol
      * @return uint - the interest rate of the asset
      */
@@ -127,7 +127,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice set collateral rate , 2 decimal places, only contract owner
+     * @notice set collateral rate , 4 decimal places, only contract owner
      * @param _symbol
      * @param _rate
      * @return bool
@@ -145,7 +145,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice get collateral rate, 2 decimal places
+     * @notice get collateral rate, 4 decimal places
      * @param _symbol
      * @return bool
      */
@@ -155,7 +155,7 @@ contract lendingContract {
 
     /*
      * @notice Deposit ECOC
-     * @param _lock amount of ECOC as collateral, can be zero
+     * @param _lock amount of ECOC as collateral(8 decimals), can be zero
      * @return bool
      */
     function depositECOC(uint256 _lock) external payable returns (bool) {
@@ -185,14 +185,21 @@ contract lendingContract {
 
         Loan storage l = debt[msg.sender];
         /* update interest */
-        uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (secsInYear * 1e4); /* rate is in % and has 2 decimal places*/
+	/* interestRate has 4 decimal places */
+        uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (secsInYear * 1e4);
         l.interest += lastInterest;
         
         /* update loan info */
         l.xrate = EFGRates["ECOC"];
-        l.interestRate = getInterestRate("ECOC");        
+        l.interestRate = getInterestRate("ECOC");
         l.timestamp = block.timestamp;
-        uint EFGAmount = _amount * collateralRates["ECOC"] * l.xrate; /* todo: precision */
+	/* precision of variables 
+	 * _amount is 8 decimals
+	 * collateralRates[] is 4 decimals
+	 * Loan.xrate is 6 decimals
+	 * EFGAmount is 8 decimals
+	 */
+        uint EFGAmount = (_amount * collateralRates["ECOC"] * l.xrate) / 1e12 ;
         l.amount += EFGAmount;
 	
         EFGBalance[msg.sender] += EFGAmount;
