@@ -10,10 +10,10 @@ contract lendingContract {
     uint256 secsInYear = 365*24*60*60;
 
     mapping(address => bool) private oracles;
-    mapping(string => uint256) private collateralRates; /* 4 decimal places */
-    mapping(string => uint256) private EFGRates; /* 8 decimal places */
-    mapping(string => uint256) private interestRates; /* 4 decimal places */
-    mapping(address => uint256) private ecocBalance; /* 8 decimal places */
+    mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
+    mapping(bytes8 => uint256) private EFGRates; /* 8 decimal places */
+    mapping(bytes8 => uint256) private interestRates; /* 4 decimal places */
+    mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private collateral; /* 8 decimal places */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
@@ -80,7 +80,7 @@ contract lendingContract {
      * @param _symbol
      * @return uint - the exchange rate between EFG and the asset
      */
-    function getEFGRates(string _symbol)
+    function getEFGRates(bytes8 _symbol)
         public
         view
         returns (uint256)
@@ -95,7 +95,7 @@ contract lendingContract {
      * @return bool
      */
     function setEFGRate(
-			string _symbol,
+			bytes8 _symbol,
 			uint256 _rate
 			) external oracleOnly() returns (bool) {
         EFGRates[_symbol] = _rate;
@@ -108,7 +108,7 @@ contract lendingContract {
      * @param _interestRate
      * @return bool
      */
-    function setInterestRate(string _symbol, uint256 _interestRate)
+    function setInterestRate(bytes8 _symbol, uint256 _interestRate)
         external
         ownerOnly()
         returns (bool)
@@ -122,7 +122,7 @@ contract lendingContract {
      * @param _symbol
      * @return uint - the interest rate of the asset
      */
-    function getInterestRate(string _symbol) public view returns (uint256) {
+    function getInterestRate(bytes8 _symbol) public view returns (uint256) {
         return interestRates[_symbol];
     }
 
@@ -132,7 +132,7 @@ contract lendingContract {
      * @param _rate
      * @return bool
      */
-    function setCollateralRate(string _symbol, uint256 _rate)
+    function setCollateralRate(bytes8 _symbol, uint256 _rate)
         public
         ownerOnly()
         returns (bool)
@@ -149,7 +149,7 @@ contract lendingContract {
      * @param _symbol
      * @return bool
      */
-    function getCollateralRate(string _symbol) public view returns (uint256) {
+    function getCollateralRate(bytes8 _symbol) public view returns (uint256) {
         return collateralRates[_symbol];
     }
 
@@ -160,11 +160,11 @@ contract lendingContract {
      */
     function depositECOC(uint256 _lock) external payable returns (bool) {
         require(msg.value > 0);
-        ecocBalance[msg.sender] += msg.value;
+        balance[msg.sender]["ECOC"] += msg.value;
         uint256 lock = _lock;
         if (_lock != 0) {
-            if (lock > ecocBalance[msg.sender]) {
-                lock = ecocBalance[msg.sender];
+            if (lock > balance[msg.sender]["ECOC"]) {
+                lock = balance[msg.sender]["ECOC"];
             }
             lockECOC(lock);
         }
@@ -178,9 +178,9 @@ contract lendingContract {
      */
     function lockECOC(uint256 _amount) public returns (bool) {
         require(_amount >= 0);
-        require(_amount <= ecocBalance[msg.sender]);
+        require(_amount <= balance[msg.sender]["ECOC"]);
         
-        ecocBalance[msg.sender] -= _amount;
+        balance[msg.sender]["ECOC"] -= _amount;
         collateral[msg.sender] += _amount;
 
         Loan storage l = debt[msg.sender];
@@ -249,7 +249,7 @@ contract lendingContract {
             amountLeft -= d.amount;
             d.amount = 0;
             EFGBalance[msg.sender] -= (_amount + amountLeft) ;
-            ecocBalance[msg.sender] += collateral[msg.sender] ;
+            balance[msg.sender]["ECOC"] += collateral[msg.sender] ;
             collateral[msg.sender] = 0 ;
             return true;
         }
@@ -262,8 +262,8 @@ contract lendingContract {
      */
     function withdrawEcoc(uint256 _amount, address _beneficiaries_addr) external payable returns (bool) {
         require(_amount > 0);
-        require(_amount <= ecocBalance[msg.sender]);
-        ecocBalance[msg.sender] -= _amount;
+        require(_amount <= balance[msg.sender]["ECOC"]);
+        balance[msg.sender]["ECOC"] -= _amount;
         _beneficiaries_addr.transfer(_amount);
         return true;
     }
