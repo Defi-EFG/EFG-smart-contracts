@@ -1,9 +1,12 @@
 pragma solidity 0.4.26;
 
+import "ECRC20/EFGToken.sol";
+import "ECRC20/GPTToken.sol";
+
 contract lendingContract {
     address owner;
-    address EFGContract;
-    address GPTContract;
+    EFGToken EFG;
+    GPTToken GPT;
     uint256 secsInYear = 365*24*60*60;
     uint256 collateralRate; /* 2 decimal places */
 
@@ -25,8 +28,8 @@ contract lendingContract {
 
     constructor(address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
-        EFGContract = _EFG_addr; /* smart contract address of EFG */
-        GPTContract = _GPT_addr; /* smart contract address of GPT */
+	EFGToken EFG = EFGToken(_EFG_addr); /* smart contract address of EFG */
+	GPTToken GPT = GPTToken(_GPT_addr); /* smart contract address of GPT */
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
