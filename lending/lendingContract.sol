@@ -1,11 +1,11 @@
 pragma solidity 0.4.26;
 
-import "ECRC20/EFGToken.sol";
-import "ECRC20/GPTToken.sol";
+import "./ECRC20/EFGToken.sol";
+import "./ECRC20/GPTToken.sol";
 
 contract lendingContract {
     address owner;
-    address pool[];
+    address[] pool;
     EFGToken EFG;
     GPTToken GPT;
     // ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
@@ -21,9 +21,9 @@ contract lendingContract {
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
     struct Pool {
-	bytes32 name;
-	mapping(address => mapping(bytes8 => uint256)) private collateral; /* 8 decimal places */
-	mapping(address => uint256) private remainingEFG; /* 8 decimal places */
+        bytes32 name;
+        mapping(address => mapping(bytes8 => uint256)) collateral; /* 8 decimal places */
+        uint256 remainingEFG; /* 8 decimal places */
     }
     mapping(address => Pool) private poolsData;
     
@@ -33,17 +33,17 @@ contract lendingContract {
         uint interestRate;    /* last interast rate in EFG , 6 digits */
         uint xrate;           /* last exchange rate EFG/ECOC , 6 digits */
         uint interest;        /* accumilated interest , 8 digits */
-	address pool;         /* pool address */
+        address pool;         /* pool address */
     }
     mapping(address => Loan) private debt;
 
     /* Events */
-    event depositECOC(bool result, address depositor, uint256 ecoc_amount, address pool, uint256 locked_amount);
-    event withdrawECOC(bool result, address beneficiar, uint256 ecoc_amount);
-    event withdrawEFG(bool result, address beneficiar, uint256 efg_amount);
-    event lockEcoc(bool result, address pool, address borrower, uint256 ecoc_amount, uint256 locked_amount);
-    event marginCall(bool result, address pool, address borrower, uint efg_eq_amount);
-    event repay(bool result, address debtors_addr, uint256 amount);
+    event depositECOCEvent(bool result, address depositor, uint256 ecoc_amount, address pool, uint256 locked_amount);
+    event withdrawECOCEvent(bool result, address beneficiar, uint256 ecoc_amount);
+    event withdrawEFGEvent(bool result, address beneficiar, uint256 efg_amount);
+    event lockEcocEvent(bool result, address pool, address borrower, uint256 ecoc_amount, uint256 locked_amount);
+    event marginCallEvent(bool result, address pool, address borrower, uint efg_eq_amount);
+    event repayEvent(bool result, address debtors_addr, uint256 amount);
 
 
     constructor(address _EFG_addr, address _GPT_addr) public {
@@ -66,8 +66,15 @@ contract lendingContract {
         _;
     }
 
-     modifier poolOwnerOnly() {
-        require(pool[msg.sender]!=0);
+    modifier poolOwnerOnly() {
+         bool exists;
+         for (uint i = 0; i < pool.length ; i++) {
+	        if(pool[i] == msg.sender) {
+	            exists = true;
+	            break;
+	        }
+	    }
+        require(exists);
         _;
     }
 
@@ -79,14 +86,19 @@ contract lendingContract {
     modifier canSeize(address _debtors_addr) {
         require(msg.sender == owner);
 	
-        uint totalDebt = getDebt(_debtors_addr);
-        uint collateralValue = (collateral[_debtors_addr]["ECOC"] * EFGRates["ECOC"]) / 1e6; /* rate has 6 decimal places */
-	uint assetValue;
-	// compute the current value of all assets
-	for (uint i = 0; i < assetName.length ; i++) {
-	    assetValue = (collateral[_debtors_addr][assetName[i]] * EFGRates[assetName[i]]) / 1e6;
-	    collateralValue += assetValue;
-	}
+        uint totalDebt;
+        address poolAddress;
+        (totalDebt, poolAddress) = getDebt(_debtors_addr);
+
+        Pool storage p = poolsData[poolAddress];
+        uint collateralValue = (p.collateral[_debtors_addr]["ECOC"] * EFGRates["ECOC"]) / 1e6; /* rate has 6 decimal places */
+
+        // compute the current value of all assets
+         uint assetValue;
+	    for (uint i = 0; i < assetName.length ; i++) {
+	        assetValue = (p.collateral[_debtors_addr][assetName[i]] * EFGRates[assetName[i]]) / 1e6;
+	        collateralValue += assetValue;
+	    }
         require(totalDebt > collateralValue);
         _;
     }
@@ -99,11 +111,11 @@ contract lendingContract {
      * @return an uint256 , the current number of ECRC20
      */
     function addNewAsset(bytes8 _symbol, address _contract_addr) external ownerOnly() returns (uint) {
-	pool.push(_symbol);
-	assetAddress.push(_contract_addr);
-	// ECRC20 newToken = ECRC20(_contract_addr);
-	// asset.push(newToken);
-	return assetAddress.length;
+       // pool.push(_symbol);
+        assetAddress.push(_contract_addr);
+        // ECRC20 newToken = ECRC20(_contract_addr);
+        // asset.push(newToken);
+        return assetAddress.length;
     }
 
     /*
@@ -114,11 +126,11 @@ contract lendingContract {
      * @return an uint256 , the current number of pools
      */
     function addNewPool(bytes8 _name, address _leader_addr, uint _EFG_amount) external ownerOnly() returns (uint) {
-	pool.push(_leader_addr);
-	Pool storage p = poolsData[_leader_addr];
-	p.name = _name;
-	p.remainingEFG = _EFG_amount;	
-	return poolsData.length;
+        pool.push(_leader_addr);
+        Pool storage p = poolsData[_leader_addr];
+        p.name = _name;
+        p.remainingEFG = _EFG_amount;
+        return pool.length;
     }
 
     /*
@@ -229,9 +241,9 @@ contract lendingContract {
             }
             bool lock_result = lockECOC(_pool_addr, lock_amount);
             if (!lock_result) {
-                emit Locked();
+               emit lockEcocEvent(false, _pool_addr, msg.sender,0 , 0);
             } else {
-                emit Locked();
+                emit lockEcocEvent(true, _pool_addr, msg.sender, msg.value, lock_amount);
             }
         }
         return true;
@@ -254,13 +266,15 @@ contract lendingContract {
         */
         uint EFGAmount = (_amount * collateralRates["ECOC"] * EFGRates["ECOC"]) / 1e12 ;
 	    Pool storage p = poolsData[_pool_addr];
+	    Loan storage l = debt[msg.sender];
+	    /* check if the pool has enough EFG */
+	    require(EFGAmount <= p.remainingEFG);
 	
         balance[msg.sender]["ECOC"] -= _amount;
-        collateral[msg.sender]["ECOC"] += _amount;
+        p.collateral[msg.sender]["ECOC"] += _amount;
 
-        Loan storage l = debt[msg.sender];
         /* update interest */
-	/* interestRate has 4 decimal places */
+        /* interestRate has 4 decimal places */
         uint lastInterest = (l.amount * l.interestRate * (block.timestamp - l.timestamp))/ (secsInYear * 1e4);
         l.interest += lastInterest;
         
@@ -268,9 +282,10 @@ contract lendingContract {
         l.xrate = EFGRates["ECOC"];
         l.interestRate = getInterestRate("ECOC");
         l.timestamp = block.timestamp;
-	l.amount += EFGAmount;
+        l.amount += EFGAmount;
 	
         EFGBalance[msg.sender] += EFGAmount;
+        p.remainingEFG -= EFGAmount;
         return true;
     }
 
@@ -278,13 +293,14 @@ contract lendingContract {
      * @notice get EFG amount of debt
      * @param _debtor
      * @return uint - the EFG amount without the interest
+     * @return address - the pool where the loan exists
      */
-    function getDebt(address _debtor) public view returns (uint256) {
+    function getDebt(address _debtor) public view returns (uint256, address) {
         Loan memory d = debt[_debtor];
     	uint totalDebt = d.amount + d.interest;
     	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate("ECOC") ) / (secsInYear * 1e4);
     	totalDebt += lastInterest;
-        return totalDebt;
+        return (totalDebt, d.pool);
     }
 
     /*
@@ -297,6 +313,7 @@ contract lendingContract {
         require (_amount <= EFGBalance[msg.sender]);
         
         Loan storage d = debt[msg.sender];
+        Pool storage p = poolsData[d.pool];
         
         if (_amount <= d.interest) {
             /* repay the interest first */
@@ -317,12 +334,12 @@ contract lendingContract {
             amountLeft -= d.amount;
             d.amount = 0;
             EFGBalance[msg.sender] -= (_amount + amountLeft) ;
-            balance[msg.sender]["ECOC"] += collateral[msg.sender]["ECOC"];
-	    collateral[msg.sender]["ECOC"] = 0 ;
-	    // also release all other assets
-	    for (uint i = 0; i < assetName.length ; i++) {
-		balance[msg.sender][assetName[i]] += collateral[msg.sender][assetName[i]];
-		collateral[msg.sender][assetName[i]] = 0;
+            balance[msg.sender]["ECOC"] += p.collateral[msg.sender]["ECOC"];
+	        p.collateral[msg.sender]["ECOC"] = 0 ;
+	        // also release all other assets
+	        for (uint i = 0; i < assetName.length ; i++) {
+		    balance[msg.sender][assetName[i]] += p.collateral[msg.sender][assetName[i]];
+		    p.collateral[msg.sender][assetName[i]] = 0;
 	    }
             return true;
         }
@@ -349,10 +366,10 @@ contract lendingContract {
     function withdrawEFG(uint256 _amount) external returns (bool) {
         require (_amount > 0);
         require (EFGBalance[msg.sender] >= _amount);
-	EFGBalance[msg.sender] -= _amount;
-	/* send the tokens */
-	EFG.transfer(msg.sender, _amount);
-	return true;
+	    EFGBalance[msg.sender] -= _amount;
+	    /* send the tokens */
+	    EFG.transfer(msg.sender, _amount);
+	    return true;
     }
 
     /*
@@ -364,21 +381,23 @@ contract lendingContract {
         ownerOnly()
         canSeize(_debtors_addr)
         returns (bool) {
-	/* seize the collateral */
-	collateral[_debtors_addr]["ECOC"] = 0;
-	// also seize all other assets
-	for (uint i = 0; i < assetName.length ; i++) {
-	    collateral[_debtors_addr][assetName[i]] = 0;
+	    /* seize the collateral */
+	    Loan storage l = debt[_debtors_addr];
+        Pool storage p = poolsData[l.pool];
+	    p.collateral[_debtors_addr]["ECOC"] = 0;
+	    // also seize all other assets
+	    for (uint i = 0; i < assetName.length ; i++) {
+	    p.collateral[_debtors_addr][assetName[i]] = 0;
 	}
-	/* reset the loan data */
-	Loan storage l = debt[_debtors_addr];
-	l.amount = 0;
-	l.timestamp = 0;
-	l.interestRate = 0;
-	l.xrate = 0;
-	l.interest =0;
+        /* reset the loan data */
+        l.amount = 0;
+        l.timestamp = 0;
+        l.interestRate = 0;
+        l.xrate = 0;
+        l.interest =0;
+        l.pool = 0;
 
-	return true;
+        return true;
     }
 
     /*
