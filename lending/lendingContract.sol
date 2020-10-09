@@ -5,6 +5,7 @@ import "ECRC20/GPTToken.sol";
 
 contract lendingContract {
     address owner;
+    address pool[];
     EFGToken EFG;
     GPTToken GPT;
     // ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
@@ -17,22 +18,38 @@ contract lendingContract {
     mapping(bytes8 => uint256) private EFGRates; /* 8 decimal places */
     mapping(bytes8 => uint256) private interestRates; /* 4 decimal places */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
-    mapping(address => mapping(bytes8 => uint256)) private collateral; /* 8 decimal places (same as balance) */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
+    struct Pool {
+	bytes32 name;
+	mapping(address => mapping(bytes8 => uint256)) private collateral; /* 8 decimal places */
+	mapping(address => uint256) private remainingEFG; /* 8 decimal places */
+    }
+    mapping(address => Pool) private poolsData;
+    
     struct Loan {
         uint amount;          /* in EFG , 8 digits */
         uint timestamp;       /* timestamp of last update (creation, topup or repay) */
         uint interestRate;    /* last interast rate in EFG , 6 digits */
         uint xrate;           /* last exchange rate EFG/ECOC , 6 digits */
         uint interest;        /* accumilated interest , 8 digits */
+	address pool;         /* pool address */
     }
     mapping(address => Loan) private debt;
 
+    /* Events */
+    event depositECOC(bool result, address depositor, uint256 ecoc_amount, address pool, uint256 locked_amount);
+    event withdrawECOC(bool result, address beneficiar, uint256 ecoc_amount);
+    event withdrawEFG(bool result, address beneficiar, uint256 efg_amount);
+    event lockEcoc(bool result, address pool, address borrower, uint256 ecoc_amount, uint256 locked_amount);
+    event marginCall(bool result, address pool, address borrower, uint efg_eq_amount);
+    event repay(bool result, address debtors_addr, uint256 amount);
+
+
     constructor(address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
-	EFG = EFGToken(_EFG_addr); /* smart contract address of EFG */
-	GPT = GPTToken(_GPT_addr); /* smart contract address of GPT */
+        EFG = EFGToken(_EFG_addr); /* smart contract address of EFG */
+        GPT = GPTToken(_GPT_addr); /* smart contract address of GPT */
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
@@ -46,6 +63,11 @@ contract lendingContract {
 
     modifier ownerOnly() {
         require(msg.sender == owner);
+        _;
+    }
+
+     modifier poolOwnerOnly() {
+        require(pool[msg.sender]!=0);
         _;
     }
 
@@ -77,11 +99,26 @@ contract lendingContract {
      * @return an uint256 , the current number of ECRC20
      */
     function addNewAsset(bytes8 _symbol, address _contract_addr) external ownerOnly() returns (uint) {
-	assetName.push(_symbol);
+	pool.push(_symbol);
 	assetAddress.push(_contract_addr);
 	// ECRC20 newToken = ECRC20(_contract_addr);
 	// asset.push(newToken);
 	return assetAddress.length;
+    }
+
+    /*
+     * @notice add new pool, only contract owner
+     * @param _name - the pool name
+     * @param  _leader_addr - address of the depositor(pool leader)
+     * @param  _EFG_amount - initial EFG amount for the pool
+     * @return an uint256 , the current number of pools
+     */
+    function addNewPool(bytes8 _name, address _leader_addr, uint _EFG_amount) external ownerOnly() returns (uint) {
+	pool.push(_leader_addr);
+	Pool storage p = poolsData[_leader_addr];
+	p.name = _name;
+	p.remainingEFG = _EFG_amount;	
+	return poolsData.length;
     }
 
     /*
@@ -182,28 +219,42 @@ contract lendingContract {
      * @param _lock amount of ECOC as collateral(8 decimals), can be zero
      * @return bool
      */
-    function depositECOC(uint256 _lock) external payable returns (bool) {
+    function depositECOC(uint256 _lock , address _pool_addr) external payable returns (bool) {
         require(msg.value > 0);
         balance[msg.sender]["ECOC"] += msg.value;
-        uint256 lock = _lock;
+        uint256 lock_amount = _lock;
         if (_lock != 0) {
-            if (lock > balance[msg.sender]["ECOC"]) {
-                lock = balance[msg.sender]["ECOC"];
+            if (lock_amount > balance[msg.sender]["ECOC"]) {
+                lock_amount = balance[msg.sender]["ECOC"];
             }
-            lockECOC(lock);
+            bool lock_result = lockECOC(_pool_addr, lock_amount);
+            if (!lock_result) {
+                emit Locked();
+            } else {
+                emit Locked();
+            }
         }
         return true;
     }
 
     /*
      * @notice use ECOC as collateral
+     * @param _pool_addr address of the pool
      * @param _amount of ECOC as collateral
      * @return bool
      */
-    function lockECOC(uint256 _amount) public returns (bool) {
+    function lockECOC(address _pool_addr, uint256 _amount) public returns (bool) {
         require(_amount >= 0);
         require(_amount <= balance[msg.sender]["ECOC"]);
-        
+        /* precision of variables 
+        * _amount is 8 decimals
+        * collateralRates[] is 4 decimals
+        * Loan.xrate is 6 decimals
+        * EFGAmount is 8 decimals
+        */
+        uint EFGAmount = (_amount * collateralRates["ECOC"] * EFGRates["ECOC"]) / 1e12 ;
+	    Pool storage p = poolsData[_pool_addr];
+	
         balance[msg.sender]["ECOC"] -= _amount;
         collateral[msg.sender]["ECOC"] += _amount;
 
@@ -217,14 +268,7 @@ contract lendingContract {
         l.xrate = EFGRates["ECOC"];
         l.interestRate = getInterestRate("ECOC");
         l.timestamp = block.timestamp;
-	/* precision of variables 
-	 * _amount is 8 decimals
-	 * collateralRates[] is 4 decimals
-	 * Loan.xrate is 6 decimals
-	 * EFGAmount is 8 decimals
-	 */
-        uint EFGAmount = (_amount * collateralRates["ECOC"] * l.xrate) / 1e12 ;
-        l.amount += EFGAmount;
+	l.amount += EFGAmount;
 	
         EFGBalance[msg.sender] += EFGAmount;
         return true;
@@ -244,11 +288,11 @@ contract lendingContract {
     }
 
     /*
-     * @notice fully or partially payback ECOC
+     * @notice fully or partially repay ECOC
      * @param _amount of EFG to be payed back
      * @return bool
      */
-    function payback(uint256 _amount) external returns (bool) {
+    function repay(uint256 _amount) external returns (bool) {
         require (_amount > 0);
         require (_amount <= EFGBalance[msg.sender]);
         
@@ -289,7 +333,7 @@ contract lendingContract {
      * @param _amount of ECOC to be withdrawn
      * @return bool
      */
-    function withdrawEcoc(uint256 _amount, address _beneficiaries_addr) external payable returns (bool) {
+    function withdrawECOC(uint256 _amount, address _beneficiaries_addr) external payable returns (bool) {
         require(_amount > 0);
         require(_amount <= balance[msg.sender]["ECOC"]);
         balance[msg.sender]["ECOC"] -= _amount;
