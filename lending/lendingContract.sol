@@ -298,7 +298,7 @@ contract lendingContract {
     function getDebt(address _debtor) public view returns (uint256, address) {
         Loan memory d = debt[_debtor];
     	uint totalDebt = d.amount + d.interest;
-    	uint lastInterest = ((block.timestamp - d.timestamp) * getInterestRate("ECOC") ) / (secsInYear * 1e4);
+        uint lastInterest = d.amount * ((block.timestamp - d.timestamp) * getInterestRate("ECOC") ) / (secsInYear * 1e4);
     	totalDebt += lastInterest;
         return (totalDebt, d.pool);
     }
