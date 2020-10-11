@@ -283,6 +283,7 @@ contract lendingContract {
         l.interestRate = getInterestRate("ECOC");
         l.timestamp = block.timestamp;
         l.amount += EFGAmount;
+        l.pool = _pool_addr;
 	
         EFGBalance[msg.sender] += EFGAmount;
         p.remainingEFG -= EFGAmount;
