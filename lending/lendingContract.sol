@@ -499,4 +499,46 @@ contract lendingContract {
     function getAllPools() public view returns (address[]) {
         return pool;
     }
+ 
+    /*
+     * @notice returns loan's information
+     * @param _debtor_addr - debtor
+     * @return uint256 - EFG amount
+     * @return uint256 - last timestamp of loan creation or update
+     * @return uint256 - last interast rate in EFG
+     * @return uint256 - total interest
+     * @return address - founder's address
+     */
+    function getLoanInfo(address _debtor_addr)
+        external
+        view
+        returns (
+            uint256 amount,
+            uint256 timestamp,
+            uint256 interestRate,
+            uint256 interest,
+            address pool
+        ) {
+            Loan memory l = debt[_debtor_addr];
+            return(l.amount, l.timestamp, l.interestRate, l.interest, l.pool);
+        }
+
+    /*
+     * @notice returns pool's information
+     * @param _pool_addr - founder's address
+     * @return bytes8 - pool name
+     *** also return struct about collateral ***
+     * @return uint256 - remainingEFG
+     */
+    function getPoolInfo(address _pool_addr)
+        external
+        view
+        returns (
+            bytes32 name,
+            /* return collateral data */
+            uint256 remainingEFG
+        ) {
+            Pool memory p = poolsData[_pool_addr];
+            return(p.name, p.remainingEFG);
+        }
 }
