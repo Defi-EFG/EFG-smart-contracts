@@ -15,7 +15,7 @@ contract lendingContract {
 
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
-    mapping(bytes8 => uint256) private EFGRates; /* 8 decimal places */
+    mapping(bytes8 => uint256) private EFGRates; /* 6 decimal places */
     mapping(bytes8 => uint256) private interestRates; /* 4 decimal places */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
@@ -38,12 +38,12 @@ contract lendingContract {
     mapping(address => Loan) private debt;
 
     /* Events */
-    event depositECOCEvent(bool result, address depositor, uint256 ecoc_amount, address pool, uint256 locked_amount);
-    event withdrawECOCEvent(bool result, address beneficiar, uint256 ecoc_amount);
-    event withdrawEFGEvent(bool result, address beneficiar, uint256 efg_amount);
-    event lockEcocEvent(bool result, address pool, address borrower, uint256 ecoc_amount, uint256 locked_amount);
-    event marginCallEvent(bool result, address pool, address borrower, uint efg_eq_amount);
-    event repayEvent(bool result, address debtors_addr, uint256 amount);
+    event DepositECOCEvent(address depositor, uint256 ecoc_amount);
+    event WithdrawECOCEvent(address user_account, address beneficiar, uint256 ecoc_amount);
+    event WithdrawEFGEvent(bool result, address beneficiar, uint256 efg_amount);
+    event LockEcocEvent(bool result, address pool, address borrower, uint256 ecoc_amount, uint256 locked_amount);
+    event MarginCallEvent(bool result, address pool, address borrower, uint efg_eq_amount);
+    event RepayEvent(bool result, address debtors_addr, uint256 amount);
 
 
     constructor(address _EFG_addr, address _GPT_addr) public {
@@ -149,7 +149,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice get exchange rate , 8 decimal places
+     * @notice get exchange rate , 6 decimal places
      * @param _symbol
      * @return uint - the exchange rate between EFG and the asset
      */
@@ -162,7 +162,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice set exchnage rate , 8 decimal places, only authorized oracle
+     * @notice set exchnage rate , 6 decimal places, only authorized oracle
      * @param _symbol
      * @param _rate
      * @return bool
@@ -241,11 +241,12 @@ contract lendingContract {
             }
             bool lock_result = lockECOC(_pool_addr, lock_amount);
             if (!lock_result) {
-               emit lockEcocEvent(false, _pool_addr, msg.sender,0 , 0);
+               emit LockEcocEvent(false, _pool_addr, msg.sender,0 , 0);
             } else {
-                emit lockEcocEvent(true, _pool_addr, msg.sender, msg.value, lock_amount);
+                emit LockEcocEvent(true, _pool_addr, msg.sender, msg.value, lock_amount);
             }
         }
+        emit DepositECOCEvent(address msg.sender, uint256 msg.value);
         return true;
     }
 
@@ -356,6 +357,7 @@ contract lendingContract {
         require(_amount <= balance[msg.sender]["ECOC"]);
         balance[msg.sender]["ECOC"] -= _amount;
         _beneficiaries_addr.transfer(_amount);
+        emit WithdrawECOCEvent(address msg.sender, address _beneficiaries_addr , uint256 _amount);
         return true;
     }
 
