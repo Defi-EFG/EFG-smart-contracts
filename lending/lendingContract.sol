@@ -332,6 +332,14 @@ contract lendingContract {
         return EFGAmount;
     }
 
+    /*
+     * @notice used by borrow() function to avoid stack too deep problem
+     * @param _symbol - asset symbol
+     * @param _amount - amount of asset
+     * @param _pool_addr - pool where the loan belongs
+     * @param uint - the total debt in EFG
+     * @return bool - return true if everything is ok, else false
+     */
     function enoughCollateral(
         bytes8 _symbol,
         uint256 _amount,
@@ -522,6 +530,7 @@ contract lendingContract {
         external
         view
         returns (
+            bytes8 assetSymbol,
             uint256 amount,
             uint256 timestamp,
             uint256 interestRate,
@@ -530,14 +539,13 @@ contract lendingContract {
         )
     {
         Loan memory l = debt[_debtor_addr];
-        return (l.amount, l.timestamp, l.interestRate, l.interest, l.pool);
+        return (l.assetSymbol, l.amount, l.timestamp, l.interestRate, l.interest, l.pool);
     }
 
     /*
      * @notice returns pool's information
      * @param _pool_addr - founder's address
      * @return bytes8 - pool name
-     *** also return struct about collateral ***
      * @return uint256 - remainingEFG
      */
     function getPoolInfo(address _pool_addr)
@@ -545,11 +553,29 @@ contract lendingContract {
         view
         returns (
             bytes32 name,
-            /* return collateral data */
             uint256 remainingEFG
         )
     {
         Pool memory p = poolsData[_pool_addr];
         return (p.name, p.remainingEFG);
+    }
+
+    /*
+     * @notice returns amount of locked assets
+     * @param _pool_addr - founder's address
+     * @return uint256[] - array of the collateral amounts , last one is ECOC
+     */
+    function getCollateralInfo(address _pool_addr) external view returns(uint256[]) {
+        uint256[] amounts ;
+        Pool storage p = poolsData[_pool_addr];
+
+        /* ECRC20 tokens */
+        for (uint i; i < assetName.length; i++) {
+            amounts.push(p.collateral[msg.sender][assetName[i]]);
+        }
+
+        /* ECOC */
+        amounts.push(p.collateral[msg.sender]["ECOC"]);
+        return amounts;
     }
 }
