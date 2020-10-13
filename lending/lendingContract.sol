@@ -114,25 +114,20 @@ contract lendingContract {
     }
 
     modifier canSeize(address _debtors_addr) {
-        require(msg.sender == owner);
-
+        /* check if a loan exists */
+        Loan storage l =  debt[_debtors_addr];
+        require(l.amount != 0);
+        /* check if the caller is the pool leader*/
+        address poolAddress = l.pool;
+        require(msg.sender == poolAddress) ;
+        /* get total debt*/
         uint256 totalDebt;
-        address poolAddress;
-        (totalDebt, poolAddress) = getDebt(_debtors_addr);
-
+        (totalDebt,) = getDebt(_debtors_addr);
+        /* compute current collateral value for this asset*/
         Pool storage p = poolsData[poolAddress];
-        uint256 collateralValue = (p.collateral[_debtors_addr]["ECOC"] *
-            EFGRates["ECOC"]) / 1e6; /* rate has 6 decimal places */
+        uint256 collateralValue = (p.collateral[_debtors_addr][l.assetSymbol] *
+            EFGRates[l.assetSymbol]) / 1e6; /* rate has 6 decimal places */
 
-        // compute the current value of all assets
-        uint256 assetValue;
-        for (uint256 i = 0; i < assetName.length; i++) {
-            assetValue =
-                (p.collateral[_debtors_addr][assetName[i]] *
-                    EFGRates[assetName[i]]) /
-                1e6;
-            collateralValue += assetValue;
-        }
         require(totalDebt > collateralValue);
         _;
     }
