@@ -28,24 +28,25 @@ contract lendingContract {
     mapping(address => Pool) private poolsData;
 
     struct Loan {
+        bytes8 assetSymbol; /* can be ECOC or any ECRC20 */
         uint256 amount; /* in EFG , 8 digits */
-        uint256 timestamp; /* timestamp of last update (creation, topup or repay) */
-        uint256 interestRate; /* last interast rate in EFG , 6 digits */
-        uint256 xrate; /* last exchange rate EFG/ECOC , 6 digits */
+        uint256 timestamp; /* timestamp of last update (creation or partial repay) */
+        uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
+        uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
         address pool; /* pool address */
     }
     mapping(address => Loan) private debt;
 
     /* Events */
-    event DepositECOCEvent(address depositor, uint256 ecoc_amount);
+    event LockECOCEvent(address depositor, uint256 ecoc_amount);
     event WithdrawECOCEvent(
         address user_account,
         address beneficiar,
         uint256 ecoc_amount
     );
     event WithdrawEFGEvent(bool result, address beneficiar, uint256 efg_amount);
-    event LockEcocEvent(
+    event BorrowEvent(
         bool result,
         address pool,
         address borrower,
@@ -264,100 +265,83 @@ contract lendingContract {
         return collateralRates[_symbol];
     }
 
+    /* Not payable, don't accept ECOC deposits directly - throw the transaction */
+    function() external {}
+
     /*
      * @notice Deposit ECOC
-     * @param _lock amount of ECOC as collateral(8 decimals), can be zero
      * @return bool
      */
-    function depositECOC(uint256 _lock, address _pool_addr)
-        external
-        payable
-        returns (bool)
-    {
+    function lockECOC(address _pool_addr, uint256 _lock _amount) external payable poolExists(address _pool_addr) returns (bool) {
         require(msg.value > 0);
-        balance[msg.sender]["ECOC"] += msg.value;
-        uint256 lock_amount = _lock;
-        if (_lock != 0) {
-            if (lock_amount > balance[msg.sender]["ECOC"]) {
-                lock_amount = balance[msg.sender]["ECOC"];
-            }
-            bool lock_result = lockECOC(_pool_addr, lock_amount);
-            if (!lock_result) {
-                emit LockEcocEvent(false, _pool_addr, msg.sender, 0, 0);
-            } else {
-                emit LockEcocEvent(
-                    true,
-                    _pool_addr,
-                    msg.sender,
-                    msg.value,
-                    lock_amount
-                );
-            }
-        }
-        emit DepositECOCEvent(msg.sender, msg.value);
+        /* check if there is no Loan for ECOC */
+        Loan memory l = debt[msg.sender];
+        require(l.assetSymbol!='ECOC');
+
+        Pool storage p = poolsData[_pool_addr];
+        p.collateral[msg.sender]['ECOC'] += msg.value;
+        
+        emit LockECOCEvent(msg.sender, msg.value);
         return true;
     }
 
     /*
-     * @notice use ECOC as collateral
+     * @notice use _symbol asset as collateral
+     * @param _symbol symbolAsset
      * @param _pool_addr address of the pool
-     * @param _amount of ECOC as collateral
-     * @return bool
+     * @param _amount of asset as collateral
+     * @return uint256 - total borrowed EFG
      */
-    function lockECOC(address _pool_addr, uint256 _amount)
+    function borrow(bytes8 _symbol, address _pool_addr, uint256 _amount)
         public
         poolExists(_pool_addr)
-        returns (bool)
+        returns (uint256)
     {
-        require(_amount >= 0);
-        require(_amount <= balance[msg.sender]["ECOC"]);
-        /* precision of variables
-         * _amount is 8 decimals
-         * collateralRates[] is 4 decimals
-         * Loan.xrate is 6 decimals
-         * EFGAmount is 8 decimals
-         */
-        uint256 EFGAmount = (_amount *
-            collateralRates["ECOC"] *
-            EFGRates["ECOC"]) / 1e12;
+        require(_amount > 0);
+        /* asset should exist */
+        require(EFGRates[_symbol]);
         Pool storage p = poolsData[_pool_addr];
+        require(_amount <= p.collateral[msg.sender][_symbol];
         Loan storage l = debt[msg.sender];
-        /* check if the pool has enough EFG */
+        bool loanIsNew = !l.timestamp;
+        require(loanisNew || l.assetSymbol==_symbol);
+
+        (uint256 currentDebt,) = getDebt(msg.sender);
+        uint256 borrowPower = (p.collateral[msg.sender][_symbol] - _amount) * collateralRates[_symbol] / 1e4;
+        require(borrowPower * EFGRates[_symbol] / 1e6 > currentDebt);
+
+        uint256 EFGAmount = (_amount *
+            collateralRates[_symbol] *
+            EFGRates[_symbol]) / 1e10;
         require(EFGAmount <= p.remainingEFG);
 
-        balance[msg.sender]["ECOC"] -= _amount;
-        p.collateral[msg.sender]["ECOC"] += _amount;
-
-        /* update interest */
-        /* interestRate has 4 decimal places */
-        uint256 lastInterest = (l.amount *
-            l.interestRate *
-            (block.timestamp - l.timestamp)) / (secsInYear * 1e4);
-        l.interest += lastInterest;
-
-        /* update loan info */
-        l.xrate = EFGRates["ECOC"];
-        l.interestRate = getInterestRate("ECOC");
+        /* save loan info */
+        if(loanIsNew) {
+            l.assetSymbol = _symbol;
+            l.xrate = EFGRates[_symbol];
+            l.interestRate = getInterestRate(_symbol);            
+            l.interest = 0;
+            l.pool = _pool_addr;
+        } else {
+            l.interest += l.amount(block.timestamp - l.timestamp) * l.interestRate) / (secsInYear * 1e4);
+        }
         l.timestamp = block.timestamp;
         l.amount += EFGAmount;
-        l.pool = _pool_addr;
-
-        EFGBalance[msg.sender] += EFGAmount;
-        p.remainingEFG -= EFGAmount;
-        return true;
+        
+        return EFGAmount;
     }
 
     /*
      * @notice get EFG amount of debt
      * @param _debtor
-     * @return uint - the EFG amount without the interest
+     * @return uint - the total debt in EFG
      * @return address - the pool where the loan exists
      */
     function getDebt(address _debtor) public view returns (uint256, address) {
         Loan memory d = debt[_debtor];
         uint256 totalDebt = d.amount + d.interest;
         uint256 lastInterest = (d.amount *
-            ((block.timestamp - d.timestamp) * getInterestRate("ECOC"))) /
+            ((block.timestamp - d.timestamp) * d.interestRate) /
             (secsInYear * 1e4);
         totalDebt += lastInterest;
         return (totalDebt, d.pool);
@@ -499,7 +483,7 @@ contract lendingContract {
     function getAllPools() public view returns (address[]) {
         return pool;
     }
- 
+
     /*
      * @notice returns loan's information
      * @param _debtor_addr - debtor
@@ -518,10 +502,11 @@ contract lendingContract {
             uint256 interestRate,
             uint256 interest,
             address pool
-        ) {
-            Loan memory l = debt[_debtor_addr];
-            return(l.amount, l.timestamp, l.interestRate, l.interest, l.pool);
-        }
+        )
+    {
+        Loan memory l = debt[_debtor_addr];
+        return (l.amount, l.timestamp, l.interestRate, l.interest, l.pool);
+    }
 
     /*
      * @notice returns pool's information
@@ -537,8 +522,9 @@ contract lendingContract {
             bytes32 name,
             /* return collateral data */
             uint256 remainingEFG
-        ) {
-            Pool memory p = poolsData[_pool_addr];
-            return(p.name, p.remainingEFG);
-        }
+        )
+    {
+        Pool memory p = poolsData[_pool_addr];
+        return (p.name, p.remainingEFG);
+    }
 }
