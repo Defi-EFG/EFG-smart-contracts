@@ -53,10 +53,10 @@ contract lendingContract {
         uint256 EFG_amount
     );
     event MarginCallEvent(
-        bool result,
         address pool,
         address borrower,
-        uint256 efg_eq_amount
+        bytes32 assetSymbol,
+        uint256 asset_amount
     );
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
 
@@ -453,7 +453,7 @@ contract lendingContract {
     }
 
     /*
-     * @notice margin call, only by contract owner and only on the condition that collateral has fallen short
+     * @notice margin call, only by pool owner and only on the condition that collateral has fallen short
      * @param _debtors_addr
      * @return bool
      */
@@ -466,18 +466,20 @@ contract lendingContract {
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
         Pool storage p = poolsData[l.pool];
-        p.collateral[_debtors_addr]["ECOC"] = 0;
-        // also seize all other assets
-        for (uint256 i = 0; i < assetName.length; i++) {
-            p.collateral[_debtors_addr][assetName[i]] = 0;
-        }
+        balances[l.pool][l.assetSymbol] +=  p.collateral[_debtors_addr][l.assetSymbol];
+
+         emit  MarginCallEvent(l.pool, _debtors_addr, l.assetSymbol,
+            p.collateral[_debtors_addr][l.assetSymbol]);
+
+        p.collateral[_debtors_addr][l.assetSymbol] = 0;
         /* reset the loan data */
+        l.assetSymbol = "";
         l.amount = 0;
         l.timestamp = 0;
         l.interestRate = 0;
         l.xrate = 0;
         l.interest = 0;
-        l.pool = 0;
+        l.pool = address(0);
 
         return true;
     }
