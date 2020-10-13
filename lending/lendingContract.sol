@@ -58,7 +58,7 @@ contract lendingContract {
         address borrower,
         uint256 efg_eq_amount
     );
-    event RepayEvent(bool result, address debtors_addr, uint256 amount);
+    event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
 
     constructor(address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
@@ -390,12 +390,15 @@ contract lendingContract {
         require(_amount <= EFGBalance[msg.sender]);
 
         Loan storage d = debt[msg.sender];
+        require(d.amount !=0 );
         Pool storage p = poolsData[d.pool];
 
         if (_amount <= d.interest) {
             /* repay the interest first */
             d.interest -= _amount;
             EFGBalance[msg.sender] -= _amount;
+            p.remainingEFG += _amount;
+            emit RepayEvent(false , msg.sender, _amount);
             return true;
         }
 
@@ -405,20 +408,18 @@ contract lendingContract {
         if (d.amount > amountLeft) {
             d.amount -= amountLeft;
             EFGBalance[msg.sender] -= _amount;
+            p.remainingEFG += _amount;
+            emit RepayEvent(false , msg.sender, _amount);
             return true;
         } else {
             /* loan repayed in full, release the collateral */
             amountLeft -= d.amount;
             d.amount = 0;
-            EFGBalance[msg.sender] -= (_amount + amountLeft);
-            balance[msg.sender]["ECOC"] += p.collateral[msg.sender]["ECOC"];
-            p.collateral[msg.sender]["ECOC"] = 0;
-            // also release all other assets
-            for (uint256 i = 0; i < assetName.length; i++) {
-                balance[msg.sender][assetName[i]] += p.collateral[msg
-                    .sender][assetName[i]];
-                p.collateral[msg.sender][assetName[i]] = 0;
-            }
+            EFGBalance[msg.sender] -= (_amount - amountLeft);
+            p.remainingEFG += (_amount - amountLeft);
+            balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
+            p.collateral[msg.sender][d.assetSymbol] = 0;
+            emit RepayEvent(true , msg.sender, _amount - amountLeft);
             return true;
         }
     }
