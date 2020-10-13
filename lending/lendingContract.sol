@@ -272,15 +272,20 @@ contract lendingContract {
      * @notice Deposit ECOC
      * @return bool
      */
-    function lockECOC(address _pool_addr, uint256 _lock_amount) external payable poolExists(_pool_addr) returns (bool) {
+    function lockECOC(address _pool_addr, uint256 _lock_amount)
+        external
+        payable
+        poolExists(_pool_addr)
+        returns (bool)
+    {
         require(msg.value > 0);
         /* check if there is no Loan for ECOC */
         Loan memory l = debt[msg.sender];
-        require(l.assetSymbol!='ECOC');
+        require(l.assetSymbol != "ECOC");
 
         Pool storage p = poolsData[_pool_addr];
-        p.collateral[msg.sender]['ECOC'] += msg.value;
-        
+        p.collateral[msg.sender]["ECOC"] += msg.value;
+
         emit LockECOCEvent(msg.sender, msg.value);
         return true;
     }
@@ -292,23 +297,16 @@ contract lendingContract {
      * @param _amount of asset as collateral
      * @return uint256 - total borrowed EFG
      */
-    function borrow(bytes8 _symbol, address _pool_addr, uint256 _amount)
-        public
-        poolExists(_pool_addr)
-        returns (uint256)
-    {
-        require(_amount > 0);
-        /* asset should exist */
-        require(EFGRates[_symbol]!=0);
+    function borrow(
+        bytes8 _symbol,
+        address _pool_addr,
+        uint256 _amount
+    ) public poolExists(_pool_addr) returns (uint256) {
+        require(enoughCollateral(_symbol, _amount, _pool_addr));
         Pool storage p = poolsData[_pool_addr];
-        require(_amount <= p.collateral[msg.sender][_symbol]);
         Loan storage l = debt[msg.sender];
-        bool loanIsNew = l.timestamp==0;
-        require(loanIsNew || l.assetSymbol==_symbol);
-
-        (uint256 currentDebt,) = getDebt(msg.sender);
-        uint256 borrowPower = (p.collateral[msg.sender][_symbol] - _amount) * collateralRates[_symbol] / 1e4;
-        require(borrowPower * EFGRates[_symbol] / 1e6 > currentDebt);
+        bool loanIsNew = l.timestamp == 0;
+        require(loanIsNew || l.assetSymbol == _symbol);
 
         uint256 EFGAmount = (_amount *
             collateralRates[_symbol] *
@@ -316,19 +314,46 @@ contract lendingContract {
         require(EFGAmount <= p.remainingEFG);
 
         /* save loan info */
-        if(loanIsNew) {
+        if (loanIsNew) {
             l.assetSymbol = _symbol;
             l.xrate = EFGRates[_symbol];
-            l.interestRate = getInterestRate(_symbol);            
+            l.interestRate = getInterestRate(_symbol);
             l.interest = 0;
             l.pool = _pool_addr;
         } else {
-            l.interest += l.amount * ((block.timestamp - l.timestamp) * l.interestRate) / (secsInYear * 1e4);
+            l.interest +=
+                (l.amount *
+                    ((block.timestamp - l.timestamp) * l.interestRate)) /
+                (secsInYear * 1e4);
         }
         l.timestamp = block.timestamp;
         l.amount += EFGAmount;
-        
+
         return EFGAmount;
+    }
+
+    function enoughCollateral(
+        bytes8 _symbol,
+        uint256 _amount,
+        address _pool_addr
+    ) internal view returns (bool) {
+        if (_amount <= 0) {
+            return false;
+        }
+        /* asset should exist */
+        if (EFGRates[_symbol] == 0) {
+            return false;
+        }
+
+        Pool storage p = poolsData[_pool_addr];
+        if (_amount > p.collateral[msg.sender][_symbol]) {
+            return false;
+        }
+
+        (uint256 currentDebt, ) = getDebt(msg.sender);
+        uint256 borrowPower = ((p.collateral[msg.sender][_symbol] - _amount) *
+            collateralRates[_symbol]) / 1e4;
+        return ((borrowPower * EFGRates[_symbol]) / 1e6 > currentDebt);
     }
 
     /*
@@ -340,8 +365,8 @@ contract lendingContract {
     function getDebt(address _debtor) public view returns (uint256, address) {
         Loan memory d = debt[_debtor];
         uint256 totalDebt = d.amount + d.interest;
-        uint256 lastInterest = (d.amount *
-            ((block.timestamp - d.timestamp) * d.interestRate) /
+        uint256 lastInterest = ((d.amount *
+            ((block.timestamp - d.timestamp) * d.interestRate)) /
             (secsInYear * 1e4));
         totalDebt += lastInterest;
         return (totalDebt, d.pool);
