@@ -272,7 +272,7 @@ contract lendingContract {
      * @notice Deposit ECOC
      * @return bool
      */
-    function lockECOC(address _pool_addr, uint256 _lock _amount) external payable poolExists(address _pool_addr) returns (bool) {
+    function lockECOC(address _pool_addr, uint256 _lock_amount) external payable poolExists(_pool_addr) returns (bool) {
         require(msg.value > 0);
         /* check if there is no Loan for ECOC */
         Loan memory l = debt[msg.sender];
@@ -299,12 +299,12 @@ contract lendingContract {
     {
         require(_amount > 0);
         /* asset should exist */
-        require(EFGRates[_symbol]);
+        require(EFGRates[_symbol]!=0);
         Pool storage p = poolsData[_pool_addr];
-        require(_amount <= p.collateral[msg.sender][_symbol];
+        require(_amount <= p.collateral[msg.sender][_symbol]);
         Loan storage l = debt[msg.sender];
-        bool loanIsNew = !l.timestamp;
-        require(loanisNew || l.assetSymbol==_symbol);
+        bool loanIsNew = l.timestamp==0;
+        require(loanIsNew || l.assetSymbol==_symbol);
 
         (uint256 currentDebt,) = getDebt(msg.sender);
         uint256 borrowPower = (p.collateral[msg.sender][_symbol] - _amount) * collateralRates[_symbol] / 1e4;
@@ -323,7 +323,7 @@ contract lendingContract {
             l.interest = 0;
             l.pool = _pool_addr;
         } else {
-            l.interest += l.amount(block.timestamp - l.timestamp) * l.interestRate) / (secsInYear * 1e4);
+            l.interest += l.amount * ((block.timestamp - l.timestamp) * l.interestRate) / (secsInYear * 1e4);
         }
         l.timestamp = block.timestamp;
         l.amount += EFGAmount;
@@ -342,7 +342,7 @@ contract lendingContract {
         uint256 totalDebt = d.amount + d.interest;
         uint256 lastInterest = (d.amount *
             ((block.timestamp - d.timestamp) * d.interestRate) /
-            (secsInYear * 1e4);
+            (secsInYear * 1e4));
         totalDebt += lastInterest;
         return (totalDebt, d.pool);
     }
