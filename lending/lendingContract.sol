@@ -47,11 +47,10 @@ contract lendingContract {
     );
     event WithdrawEFGEvent(bool result, address beneficiar, uint256 efg_amount);
     event BorrowEvent(
-        bool result,
+        bool newLoan,
         address pool,
         address borrower,
-        uint256 ecoc_amount,
-        uint256 locked_amount
+        uint256 EFG_amount
     );
     event MarginCallEvent(
         bool result,
@@ -305,7 +304,7 @@ contract lendingContract {
         require(enoughCollateral(_symbol, _amount, _pool_addr));
         Pool storage p = poolsData[_pool_addr];
         Loan storage l = debt[msg.sender];
-        bool loanIsNew = l.timestamp == 0;
+        bool loanIsNew = (l.timestamp == 0);
         require(loanIsNew || l.assetSymbol == _symbol);
 
         uint256 EFGAmount = (_amount *
@@ -329,6 +328,7 @@ contract lendingContract {
         l.timestamp = block.timestamp;
         l.amount += EFGAmount;
 
+        emit BorrowEvent(loanIsNew, _pool_addr, msg.sender, EFGAmount);
         return EFGAmount;
     }
 
