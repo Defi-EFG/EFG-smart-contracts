@@ -322,6 +322,7 @@ contract lendingContract {
         }
         l.timestamp = block.timestamp;
         l.amount += EFGAmount;
+        p.remainingEFG -= EFGAmount;
 
         emit BorrowEvent(loanIsNew, _pool_addr, msg.sender, EFGAmount);
         return EFGAmount;
@@ -466,7 +467,7 @@ contract lendingContract {
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
         Pool storage p = poolsData[l.pool];
-        balances[l.pool][l.assetSymbol] +=  p.collateral[_debtors_addr][l.assetSymbol];
+        balance[l.pool][l.assetSymbol] +=  p.collateral[_debtors_addr][l.assetSymbol];
 
          emit  MarginCallEvent(l.pool, _debtors_addr, l.assetSymbol,
             p.collateral[_debtors_addr][l.assetSymbol]);
