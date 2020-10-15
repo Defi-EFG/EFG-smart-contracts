@@ -6,7 +6,7 @@ import "./ECRC20/GPTToken.sol";
 contract ECRC20 {
     function totalSupply() public constant returns (uint);
     function balanceOf(address tokenOwner) public constant returns (uint balance);
-    function allowance(address tokenOwner, address spender) public constant returns (uint remaining);
+    //function allowance(address tokenOwner, address spender) public constant returns (uint remaining);
     function transfer(address to, uint tokens) public returns (bool success);
     function approve(address spender, uint tokens) public returns (bool success);
     function transferFrom(address from, address to, uint tokens) public returns (bool success);
@@ -51,6 +51,7 @@ contract lendingContract {
 
     /* Events */
     event LockECOCEvent(address depositor, uint256 ecoc_amount);
+    event LockAssetEvent(bool result, bytes8 _symbol, address depositor, uint256 _amount);
     event WithdrawECOCEvent(
         address user_account,
         address beneficiar,
@@ -276,6 +277,7 @@ contract lendingContract {
 
     /*
      * @notice Deposit ECOC
+     * @param _pool_addr
      * @return bool
      */
     function lockECOC(address _pool_addr)
@@ -293,6 +295,44 @@ contract lendingContract {
         p.collateral[msg.sender]["ECOC"] += msg.value;
 
         emit LockECOCEvent(msg.sender, msg.value);
+        return true;
+    }
+    
+    /*
+     * @notice Deposit ECRC20
+     * @param _symbol - asset symbol
+     * @param _mount - amount of ECRC tokens
+     * @param _pool_addr
+     * @return bool
+     */
+    function lockAsset(bytes8 _symbol, uint56 _amount, address _pool_addr)
+        external
+        payable
+        poolExists(_pool_addr)
+        returns (bool)
+    {
+        require(_amount > 0);
+        for (uint i=0; i<assetName.length; i++) {
+            if (assetName[i] == _symbol) {
+                ECRC20 token = ECRC20(assetAddress[1]);
+                break;
+            }
+            return false;
+        }
+        /* check if there is no Loan for this asset */
+        Loan memory l = debt[msg.sender];
+        require(l.assetSymbol != _symbol);
+
+        /* send the tokens , it will fail if not appoved before */
+        bool result = token.transferFrom(msg.sender, address(this), _amount);
+        if (!result) {
+            emit LockAssetEvent(false, _symbol, msg.sender, _amount);
+            return false;
+        }
+
+        Pool storage p = poolsData[_pool_addr];
+        p.collateral[msg.sender][_symbol] += _amount;
+        emit LockAssetEvent(true, _symbol, msg.sender, _amount);
         return true;
     }
 
@@ -465,7 +505,7 @@ contract lendingContract {
         emit WithdrawEFGEvent(msg.sender, _amount);
         return true;
     }
-
+    
     /*
      * @notice withdraw Asset (ECRC20)
      * @param _amount of asset to be withdrawn
@@ -484,7 +524,7 @@ contract lendingContract {
             }
         }
         emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
-        return false;
+        return false; 
     }
 
     /*
