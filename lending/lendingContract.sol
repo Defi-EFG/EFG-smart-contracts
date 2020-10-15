@@ -3,12 +3,23 @@ pragma solidity 0.4.26;
 import "./ECRC20/EFGToken.sol";
 import "./ECRC20/GPTToken.sol";
 
+contract ECRC20 {
+    function totalSupply() public constant returns (uint);
+    function balanceOf(address tokenOwner) public constant returns (uint balance);
+    function allowance(address tokenOwner, address spender) public constant returns (uint remaining);
+    function transfer(address to, uint tokens) public returns (bool success);
+    function approve(address spender, uint tokens) public returns (bool success);
+    function transferFrom(address from, address to, uint tokens) public returns (bool success);
+    event Transfer(address indexed from, address indexed to, uint tokens);
+    event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
+}
+
 contract lendingContract {
     address owner;
     address[] pool;
     EFGToken EFG;
     GPTToken GPT;
-    // ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
+    ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
     bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
     address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
     uint256 secsInYear = 365 * 24 * 60 * 60;
@@ -45,7 +56,8 @@ contract lendingContract {
         address beneficiar,
         uint256 ecoc_amount
     );
-    event WithdrawEFGEvent(bool result, address beneficiar, uint256 efg_amount);
+    event WithdrawEFGEvent(address beneficiar, uint256 efg_amount);
+    event WithdrawAssetEvent(bool result, address beneficiar, bytes8 symbol, uint256 _amount);
     event BorrowEvent(
         bool newLoan,
         address pool,
@@ -143,10 +155,10 @@ contract lendingContract {
         ownerOnly()
         returns (uint256)
     {
-        // pool.push(_symbol);
         assetAddress.push(_contract_addr);
-        // ECRC20 newToken = ECRC20(_contract_addr);
-        // asset.push(newToken);
+        assetName.push(_symbol);
+        ECRC20 newToken = ECRC20(_contract_addr);
+        asset.push(newToken);
         return assetAddress.length;
     }
 
@@ -266,7 +278,7 @@ contract lendingContract {
      * @notice Deposit ECOC
      * @return bool
      */
-    function lockECOC(address _pool_addr, uint256 _lock_amount)
+    function lockECOC(address _pool_addr)
         external
         payable
         poolExists(_pool_addr)
@@ -450,7 +462,29 @@ contract lendingContract {
         EFGBalance[msg.sender] -= _amount;
         /* send the tokens */
         EFG.transfer(msg.sender, _amount);
+        emit WithdrawEFGEvent(msg.sender, _amount);
         return true;
+    }
+
+    /*
+     * @notice withdraw Asset (ECRC20)
+     * @param _amount of asset to be withdrawn
+     * @return bool
+     */
+    function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns (bool) {
+        require(_amount > 0);
+        for (uint i=0; i<assetName.length; i++) {
+            if (assetName[i] == _symbol) {
+            require(balance[msg.sender][_symbol] >= _amount);
+            balance[msg.sender][_symbol] -= _amount;
+            /* send the tokens */
+            asset[i].transfer(msg.sender, _amount);
+            emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
+            return true;
+            }
+        }
+        emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
+        return false;
     }
 
     /*
