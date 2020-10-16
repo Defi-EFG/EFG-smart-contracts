@@ -305,7 +305,7 @@ contract LendingContract {
      * @param _pool_addr
      * @return bool
      */
-    function lockAsset(bytes8 _symbol, uint56 _amount, address _pool_addr)
+    function lockAsset(bytes8 _symbol, uint256 _amount, address _pool_addr)
         external
         poolExists(_pool_addr)
         returns (bool)
@@ -475,9 +475,10 @@ contract LendingContract {
     /*
      * @notice withdraw ECOC
      * @param _amount of ECOC to be withdrawn
+     * @param _beneficiars_addr
      * @return bool
      */
-    function withdrawECOC(uint256 _amount, address _beneficiaries_addr)
+    function withdrawECOC(uint256 _amount, address _beneficiars_addr)
         external
         payable
         returns (bool)
@@ -485,9 +486,9 @@ contract LendingContract {
         require(_amount > 0);
         require(_amount <= balance[msg.sender]["ECOC"]);
         balance[msg.sender]["ECOC"] -= _amount;
-        _beneficiaries_addr.transfer(_amount);
+        _beneficiars_addr.transfer(_amount);
 
-        emit WithdrawECOCEvent(msg.sender, _beneficiaries_addr, _amount);
+        emit WithdrawECOCEvent(msg.sender, _beneficiars_addr, _amount);
         return true;
     }
 
@@ -642,6 +643,5 @@ contract LendingContract {
     function getCollateralInfo(address _pool_addr, bytes8 _symbol) external view returns(uint256) {
         Pool storage p = poolsData[_pool_addr];
         return p.collateral[msg.sender][_symbol];
-        return collateralAmount;
     }
 }

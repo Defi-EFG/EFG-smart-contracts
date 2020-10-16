@@ -31,6 +31,7 @@ contract StakingContract {
     }
 
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
+    event WithdrawEFGEvent(bool result, address beneficiar, uint EFGAmount);
     
     /*
      * @notice users can deposit EFG for staking
@@ -80,8 +81,23 @@ contract StakingContract {
      * @param _amount - amount of EFG to withdrawn
      * @return bool - true on success
      */
-    function withdrawEFG(address _beneficiar, uint256 _amount) returns (bool){
-
+    function withdrawEFG(address _beneficiar, uint256 _amount) external returns (bool){
+        Minting storage m = locked[msg.sender];
+        require(_amount > m.lockedAmount);
+        
+        /* send the tokens */
+        bool result = EFG.transfer(_beneficiar, _amount);
+        if(!result) {
+            emit WithdrawEFGEvent(false, msg.sender, _amount);
+            return false;
+        }
+        
+        updateUnclaimedAmount(msg.sender);
+        m.lockedAmount -= _amount;
+        m.lastClaimed = block.timestamp;
+        emit WithdrawEFGEvent(true, _beneficiar, _amount);
+        
+        return true;
     }
 
     /*
@@ -104,7 +120,7 @@ contract StakingContract {
 
     /*
      * @notice updates the total staked GPT amount in a minting contract
-     * @rparam _minters_addr
+     * @param _minters_addr
      */
     function updateUnclaimedAmount(address _minters_addr) internal {
         Minting storage m = locked[msg.sender];
@@ -112,13 +128,20 @@ contract StakingContract {
         return ;
     }
 
+    /*
+     * @notice for computing the staked amount only (pure function)
+     * @param _period
+     * @param _rate
+     * @param _staked
+     * return uint256 - the amount of unclaimed GPT
+     */
 
     function computeUnclaimedAmount(uint _period, uint _rate, uint _staked) internal pure returns(uint256) {
         uint256 stakedAmount;
-
+        
         stakedAmount = _period * _rate * _staked;
         stakedAmount /= 1e16; /* staking rate is in e-16 */
-
+        
         return stakedAmount;
     }
-}
+}   
