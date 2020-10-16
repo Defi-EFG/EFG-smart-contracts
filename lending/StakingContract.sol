@@ -87,10 +87,11 @@ contract StakingContract {
     /*
      * @notice returns mining info for the beneficiar
      * @param _beneficiar
-     * @return (uint256, uint256, uint256) - returns
+     * @return (uint256, uint256, uint256) - returns locked EFG, last topup timestamp and unclaimed amount
      */
     function mintingInfo(address _beneficiar) external view returns (uint256, uint256, uint256) {
-
+        Minting memory m = locked[_beneficiar];
+        return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount);
     }
 
     /*
@@ -107,14 +108,17 @@ contract StakingContract {
      */
     function updateUnclaimedAmount(address _minters_addr) internal {
         Minting storage m = locked[msg.sender];
-
         m.unclaimedAmount += computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount);
         return ;
     }
 
 
     function computeUnclaimedAmount(uint _period, uint _rate, uint _staked) internal pure returns(uint256) {
-        /* implementation*/
-        //return stakedAmount;
+        uint256 stakedAmount;
+
+        stakedAmount = _period * _rate * _staked;
+        stakedAmount /= 1e16; /* staking rate is in e-16 */
+
+        return stakedAmount;
     }
-}   
+}
