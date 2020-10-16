@@ -6,7 +6,7 @@ import "./ECRC20/GPTToken.sol";
 contract ECRC20 {
     function totalSupply() public constant returns (uint);
     function balanceOf(address tokenOwner) public constant returns (uint balance);
-    //function allowance(address tokenOwner, address spender) public constant returns (uint remaining);
+    function allowance(address tokenOwner, address spender) public constant returns (uint remaining);
     function transfer(address to, uint tokens) public returns (bool success);
     function approve(address spender, uint tokens) public returns (bool success);
     function transferFrom(address from, address to, uint tokens) public returns (bool success);
@@ -14,7 +14,7 @@ contract ECRC20 {
     event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
 }
 
-contract lendingContract {
+contract LendingContract {
     address owner;
     address[] pool;
     EFGToken EFG;
@@ -120,7 +120,7 @@ contract lendingContract {
         require(exists);
         _;
     }
-
+    
     modifier oracleOnly() {
         require(oracles[msg.sender]);
         _;
@@ -307,7 +307,6 @@ contract lendingContract {
      */
     function lockAsset(bytes8 _symbol, uint56 _amount, address _pool_addr)
         external
-        payable
         poolExists(_pool_addr)
         returns (bool)
     {
@@ -322,13 +321,14 @@ contract lendingContract {
         /* check if there is no Loan for this asset */
         Loan memory l = debt[msg.sender];
         require(l.assetSymbol != _symbol);
-
+        
         /* send the tokens , it will fail if not appoved before */
         bool result = token.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
             emit LockAssetEvent(false, _symbol, msg.sender, _amount);
             return false;
         }
+        
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
@@ -636,19 +636,11 @@ contract lendingContract {
     /*
      * @notice returns amount of locked assets
      * @param _pool_addr - founder's address
-     * @return uint256[] - array of the collateral amounts , last one is ECOC
+     * @param _symbol - token symbol
+     * @return uint256 - amount of the collateral , 8 decimals
      */
-    function getCollateralInfo(address _pool_addr) external view returns(uint256[]) {
-        uint256[] amounts ;
+    function getCollateralInfo(address _pool_addr, bytes8 _symbol) external view returns(uint256) {
         Pool storage p = poolsData[_pool_addr];
-
-        /* ECRC20 tokens */
-        for (uint i; i < assetName.length; i++) {
-            amounts.push(p.collateral[msg.sender][assetName[i]]);
-        }
-
-        /* ECOC */
-        amounts.push(p.collateral[msg.sender]["ECOC"]);
-        return amounts;
+        return p.collateral[msg.sender][_symbol];
     }
 }
