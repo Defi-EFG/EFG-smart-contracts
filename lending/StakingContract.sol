@@ -21,7 +21,7 @@ contract StakingContract {
     struct Minting {
         uint256 lockedAmount; /* EFG, 8 decimales*/
         uint256 lastClaimed ; /* timestamp */
-        uint256 mintedAmount; /* 16 decimals */
+        uint256 unclaimedAmount; /* 16 decimals */
     }
     mapping(address => Minting) private locked;
 
@@ -30,36 +30,91 @@ contract StakingContract {
         _;
     }
 
-     /*
-     * @notice return remaing GPT of smart contract , 8 decimal places
-     * @return uint256 - the amount of remaining tokens
-     */
-    function unclaimedGPT(address _beneficiar) public view returns (uint256){
-        return GPT.balanceOf(address(this));
-
-    }
+    event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     
     /*
-     * @notice users can deposit GPT for staking
-     * @param _amount - deposit amount of GPT , 8 decimals
-     * @return bool - true on success
+     * @notice users can deposit EFG for staking
+     * @param _amount - deposit amount of EFG , 8 decimals
+     * @return bool - true on success , else false
      */
     function mintGPT(uint256 _amount) returns(bool) {
-        /* transfer GPt to this contract - it will fail if not appoved before */
+        require(_amount > 0);
+        /* check if contract still  has GPT */
+        if (unclaimedGPT() == 0) {
+            emit MintGPTEvent(false, msg.sender, _amount);
+            return false;
+        }
+        /* transfer EFG to this contract - it will fail if not appoved before */
         bool result = EFG.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
-            //emit MintGPTEvent(false, msg.sender, _amount);
+            emit MintGPTEvent(false, msg.sender, _amount);
             return false;
         }
 
+        /* create or update the minting info */
+        Minting storage m = locked[msg.sender];
+
+        if(m.lockedAmount > 0) {
+            /* this is a topup*/
+            updateUnclaimedAmount(msg.sender);
+        }
+        m.lockedAmount += _amount;
+        m.lastClaimed = block.timestamp;
+
+        emit MintGPTEvent(true , msg.sender, _amount);
+        return true;
     }
 
-    function claimStakedGPT(address _beneficiar, uint256 _amount) {
+    /*
+     * @notice claim any unclaimed GPT (withdraw)
+     * @param _beneficiar - destination address
+     * @return bool - true on success
+     */
+    function claimStakedGPT(address _beneficiar) {
 
     }
 
+    /*
+     * @notice withdraw EFG , beneficiar can withdraw to any address
+     * @param _beneficiar - destination address
+     * @param _amount - amount of EFG to withdrawn
+     * @return bool - true on success
+     */
+    function withdrawEFG(address _beneficiar, uint256 _amount) returns (bool){
+
+    }
+
+    /*
+     * @notice returns mining info for the beneficiar
+     * @param _beneficiar
+     * @return (uint256, uint256, uint256) - returns
+     */
     function mintingInfo(address _beneficiar) external view returns (uint256, uint256, uint256) {
 
     }
 
+    /*
+     * @notice return remaing GPT of smart contract , 4 decimal places
+     * @return uint256 - the amount of remaining tokens
+     */
+    function unclaimedGPT() public view returns (uint256){
+        return GPT.balanceOf(address(this));
+    }
+
+    /*
+     * @notice updates the total staked GPT amount in a minting contract
+     * @rparam _minters_addr
+     */
+    function updateUnclaimedAmount(address _minters_addr) internal {
+        Minting storage m = locked[msg.sender];
+
+        m.unclaimedAmount += computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount);
+        return ;
+    }
+
+
+    function computeUnclaimedAmount(uint _period, uint _rate, uint _staked) internal pure returns(uint256) {
+        /* implementation*/
+        //return stakedAmount;
+    }
 }   

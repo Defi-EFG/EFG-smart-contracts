@@ -642,5 +642,6 @@ contract LendingContract {
     function getCollateralInfo(address _pool_addr, bytes8 _symbol) external view returns(uint256) {
         Pool storage p = poolsData[_pool_addr];
         return p.collateral[msg.sender][_symbol];
+        return collateralAmount;
     }
 }
