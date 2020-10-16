@@ -9,10 +9,7 @@ contract StakingContract {
     GPTToken GPT;
     EFGToken EFG;
 
-    mapping(address => uint256) private GPTBalance; /* 8 decimal places */
-
     constructor (address _EFG_addr,address  _GPT_addr) {
-        owner = msg.sender;
         mintingRate = 1286; /* mining rate per second in e-16 */
         GPT = GPTToken(_GPT_addr); /* smart contract address of GPT , 4 decimal places */
         EFG = EFGToken(_EFG_addr); /* smart contract address of EFG , 8 decimal places*/
@@ -25,11 +22,6 @@ contract StakingContract {
     }
     mapping(address => Minting) private locked;
 
-    modifier ownerOnly() {
-        require(msg.sender == owner);
-        _;
-    }
-
     event ClaimStakedGPT(bool result, address beneficiar, uint GPTAmount);
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     event WithdrawEFGEvent(bool result, address beneficiar, uint EFGAmount);
@@ -41,7 +33,7 @@ contract StakingContract {
      */
     function mintGPT(uint256 _amount) returns(bool) {
         require(_amount > 0);
-        /* check if contract still  has GPT */
+        /* check if contract still has GPT */
         if (unclaimedGPT() == 0) {
             emit MintGPTEvent(false, msg.sender, _amount);
             return false;
@@ -155,7 +147,7 @@ contract StakingContract {
     }
 
     /*
-     * @notice for computing the staked amount only (pure function)
+     * @notice for computing the staked amount of last period only (pure function)
      * @param _period
      * @param _rate
      * @param _staked
