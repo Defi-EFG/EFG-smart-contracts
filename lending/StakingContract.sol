@@ -30,6 +30,7 @@ contract StakingContract {
         _;
     }
 
+    event ClaimStakedGPT(bool result, address beneficiar, uint GPTAmount);
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     event WithdrawEFGEvent(bool result, address beneficiar, uint EFGAmount);
     
@@ -71,8 +72,33 @@ contract StakingContract {
      * @param _beneficiar - destination address
      * @return bool - true on success
      */
-    function claimStakedGPT(address _beneficiar) {
+    function claimStakedGPT(address _beneficiar) external returns(bool) {
+        /* first check if the contract has any GPT left*/
+        require (unclaimedGPT() > 0);
+        /* check if there was at least one EFG deposit*/
+        Minting m = locked[msg.sender];
+        if (m.lastClaimed == 0) { /* zero timestamp */
+            emit ClaimStakedGPT(false, msg.sender, 0);
+            return false;
+        }
 
+        updateUnclaimedAmount(msg.sender);
+        m.lastClaimed = block.timestamp;
+        uint256 allowedGPT = m.unclaimedAmount;
+        if (allowedGPT > unclaimedGPT()) {
+            allowedGPT = unclaimedGPT();
+        }
+
+        /* send out the GPT */
+        bool result = GPT.transfer(_beneficiar, allowedGPT);
+        if (!result) {
+            emit ClaimStakedGPT(false, _beneficiar, allowedGPT);
+            return false;
+        }
+
+        m.unclaimedAmount -= allowedGPT;
+        emit ClaimStakedGPT(true, _beneficiar, allowedGPT);
+        return true;
     }
 
     /*
@@ -144,4 +170,4 @@ contract StakingContract {
         
         return stakedAmount;
     }
-}   
+}
