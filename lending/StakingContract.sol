@@ -101,7 +101,7 @@ contract StakingContract {
      */
     function withdrawEFG(address _beneficiar, uint256 _amount) external returns (bool){
         Minting storage m = locked[msg.sender];
-        require(_amount > m.lockedAmount);
+        require(_amount <= m.lockedAmount);
         
         /* send the tokens */
         bool result = EFG.transfer(_beneficiar, _amount);
