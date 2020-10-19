@@ -58,6 +58,7 @@ contract LendingContract {
         uint256 ecoc_amount
     );
     event WithdrawEFGEvent(address beneficiar, uint256 efg_amount);
+    event WithdrawGPTEvent(bool result, address beneficiar, uint256 gpt_amount);
     event WithdrawAssetEvent(bool result, address beneficiar, bytes8 symbol, uint256 _amount);
     event BorrowEvent(
         bool newLoan,
@@ -558,6 +559,35 @@ contract LendingContract {
         return true;
     }
 
+    
+    function extendGracePeriod() external returns(bool) {
+       
+    }
+
+    /*
+     * @notice withdraw GPT , owner only, can withdraw to any address
+     * @param _beneficiar - destination address
+     * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw total balance
+     * @return bool - true on success, else false
+     */
+    function withdrawGPT(address _beneficiar, uint256 _amount) external ownerOnly() returns(bool){
+        require(GPT.balanceOf(address(this)) > 0);
+        uint256 requestedAmount = _amount;
+        if ((_amount == 0) || ((_amount > GPT.balanceOf(address(this))))) {
+            requestedAmount = GPT.balanceOf(address(this));
+        }
+
+        /* send the GPT tokens */
+        bool result = GPT.transfer(_beneficiar, _amount);
+        if(!result) {
+            emit WithdrawGPTEvent(false, msg.sender, _amount);
+            return false;
+        } else {
+            emit WithdrawGPTEvent(true, _beneficiar, _amount);
+            return true;
+        }
+    }
+
     /*
      * @notice display EFG balance
      * @param _address beneficiar's address
@@ -607,7 +637,7 @@ contract LendingContract {
             uint256 timestamp,
             uint256 interestRate,
             uint256 interest,
-            address pool
+            address poolAddr
         )
     {
         Loan memory l = debt[_debtor_addr];
