@@ -2,7 +2,7 @@
  * Special thanks to Openzeppelin team
  */
 
-pragma solidity ^0.4.26;
+pragma solidity 0.4.26;
 
 import "./IECRC20.sol";
 import "./SafeMath.sol";
