@@ -125,7 +125,7 @@ contract StakingContract {
      */
     function mintingInfo(address _beneficiar) external view returns (uint256, uint256, uint256) {
         Minting memory m = locked[_beneficiar];
-        return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount);
+        return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount));
     }
 
     /*
@@ -141,7 +141,7 @@ contract StakingContract {
      * @param _minters_addr
      */
     function updateUnclaimedAmount(address _minters_addr) internal {
-        Minting storage m = locked[msg.sender];
+        Minting storage m = locked[_minters_addr];
         m.unclaimedAmount += computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount);
         return ;
     }
