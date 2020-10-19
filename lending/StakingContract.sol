@@ -31,7 +31,7 @@ contract StakingContract {
      * @param _amount - deposit amount of EFG , 8 decimals
      * @return bool - true on success , else false
      */
-    function mintGPT(uint256 _amount) returns(bool) {
+    function mintGPT(uint256 _amount) external returns(bool) {
         require(_amount > 0);
         /* check if contract still has GPT */
         if (unclaimedGPT() == 0) {
@@ -68,7 +68,7 @@ contract StakingContract {
         /* first check if the contract has any GPT left*/
         require (unclaimedGPT() > 0);
         /* check if there was at least one EFG deposit*/
-        Minting m = locked[msg.sender];
+        Minting storage m = locked[msg.sender];
         if (m.lastClaimed == 0) { /* zero timestamp */
             emit ClaimStakedGPT(false, msg.sender, 0);
             return false;
