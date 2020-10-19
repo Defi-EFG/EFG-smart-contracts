@@ -23,11 +23,11 @@ contract LendingContract {
     bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
     address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
     uint256 secsInYear = 365 * 24 * 60 * 60;
+    uint256 private interestRateEFG; /* 4 decimal places */
 
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
     mapping(bytes8 => uint256) private EFGRates; /* 6 decimal places */
-    mapping(bytes8 => uint256) private interestRates; /* 4 decimal places */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
@@ -82,7 +82,7 @@ contract LendingContract {
          * Initial rate is 10% per year
          * 4 decimal places (1,000/10,000=0.1=10%)
          */
-        interestRates["ECOC"] = 1000;
+        interestRateEFG = 1000;
 
         /* Initial collateral rate of ECOC is 25% , 4 decimal places. */
         collateralRates["ECOC"] = 2500;
@@ -223,26 +223,24 @@ contract LendingContract {
 
     /*
      * @notice set interest rate , 4 decimal places, only contract owner
-     * @param _symbol
      * @param _interestRate
      * @return bool
      */
-    function setInterestRate(bytes8 _symbol, uint256 _interestRate)
+    function setInterestRate(uint256 _interestRate)
         external
         ownerOnly()
         returns (bool)
     {
-        interestRates[_symbol] = _interestRate;
+        interestRateEFG = _interestRate;
         return true;
     }
 
     /*
      * @notice get interest rate, 4 decimal places
-     * @param _symbol
      * @return uint - the interest rate of the asset
      */
-    function getInterestRate(bytes8 _symbol) public view returns (uint256) {
-        return interestRates[_symbol];
+    function getInterestRate() external view returns (uint256) {
+        return interestRateEFG;
     }
 
     /*
@@ -363,7 +361,7 @@ contract LendingContract {
         if (loanIsNew) {
             l.assetSymbol = _symbol;
             l.xrate = EFGRates[_symbol];
-            l.interestRate = getInterestRate(_symbol);
+            l.interestRate = interestRateEFG;
             l.interest = 0;
             l.pool = _pool_addr;
         } else {
