@@ -45,7 +45,7 @@ contract LendingContract {
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
-        address pool; /* pool address */
+        address poolAddr; /* pool address */
     }
     mapping(address => Loan) private debt;
 
@@ -131,7 +131,7 @@ contract LendingContract {
         Loan storage l =  debt[_debtors_addr];
         require(l.amount != 0);
         /* check if the caller is the pool leader*/
-        address poolAddress = l.pool;
+        address poolAddress = l.poolAddr;
         require(msg.sender == poolAddress) ;
         /* get total debt*/
         uint256 totalDebt;
@@ -363,7 +363,7 @@ contract LendingContract {
             l.xrate = computeEFGRate(USDTRates[_symbol], USDTRates["EFG"]);
             l.interestRate = interestRateEFG;
             l.interest = 0;
-            l.pool = _pool_addr;
+            l.poolAddr = _pool_addr;
         } else {
             l.interest +=
                 (l.amount *
@@ -423,7 +423,7 @@ contract LendingContract {
             ((block.timestamp - d.timestamp) * d.interestRate)) /
             (secsInYear * 1e4));
         totalDebt += lastInterest;
-        return (totalDebt, d.pool);
+        return (totalDebt, d.poolAddr);
     }
 
     /*
@@ -437,7 +437,7 @@ contract LendingContract {
 
         Loan storage d = debt[msg.sender];
         require(d.amount !=0 );
-        Pool storage p = poolsData[d.pool];
+        Pool storage p = poolsData[d.poolAddr];
 
         if (_amount <= d.interest) {
             /* repay the interest first */
@@ -539,10 +539,10 @@ contract LendingContract {
     {
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
-        Pool storage p = poolsData[l.pool];
-        balance[l.pool][l.assetSymbol] +=  p.collateral[_debtors_addr][l.assetSymbol];
+        Pool storage p = poolsData[l.poolAddr];
+        balance[l.poolAddr][l.assetSymbol] +=  p.collateral[_debtors_addr][l.assetSymbol];
 
-         emit  MarginCallEvent(l.pool, _debtors_addr, l.assetSymbol,
+         emit  MarginCallEvent(l.poolAddr, _debtors_addr, l.assetSymbol,
             p.collateral[_debtors_addr][l.assetSymbol]);
 
         p.collateral[_debtors_addr][l.assetSymbol] = 0;
@@ -553,7 +553,7 @@ contract LendingContract {
         l.interestRate = 0;
         l.xrate = 0;
         l.interest = 0;
-        l.pool = address(0);
+        l.poolAddr = address(0);
 
         return true;
     }
@@ -611,7 +611,7 @@ contract LendingContract {
         )
     {
         Loan memory l = debt[_debtor_addr];
-        return (l.assetSymbol, l.amount, l.timestamp, l.interestRate, l.interest, l.pool);
+        return (l.assetSymbol, l.amount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
     }
 
     /*
