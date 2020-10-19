@@ -27,7 +27,7 @@ contract LendingContract {
 
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
-    mapping(bytes8 => uint256) private EFGRates; /* 6 decimal places */
+    mapping(bytes8 => uint256) private USDTRates; /* 6 decimal places */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
@@ -139,7 +139,7 @@ contract LendingContract {
         /* compute current collateral value for this asset*/
         Pool storage p = poolsData[poolAddress];
         uint256 collateralValue = (p.collateral[_debtors_addr][l.assetSymbol] *
-            EFGRates[l.assetSymbol]) / 1e6; /* rate has 6 decimal places */
+            computeEFGRate(USDTRates[l.assetSymbol], USDTRates["EFG"])) / 1e6; /* rate has 6 decimal places */
 
         require(totalDebt > collateralValue);
         _;
@@ -198,26 +198,26 @@ contract LendingContract {
     }
 
     /*
-     * @notice get exchange rate , 6 decimal places
+     * @notice get exchange rate of asset/USDT , 6 decimal places
      * @param _symbol
      * @return uint - the exchange rate between EFG and the asset
      */
-    function getEFGRates(bytes8 _symbol) public view returns (uint256) {
-        return EFGRates[_symbol];
+    function getUSDTRates(bytes8 _symbol) public view returns (uint256) {
+        return USDTRates[_symbol];
     }
 
     /*
-     * @notice set exchnage rate , 6 decimal places, only authorized oracle
+     * @notice set exchnage rate of asset/USDT, 6 decimal places, only authorized oracle
      * @param _symbol
      * @param _rate
      * @return bool
      */
-    function setEFGRate(bytes8 _symbol, uint256 _rate)
+    function setUSDTate(bytes8 _symbol, uint256 _rate)
         external
         oracleOnly()
         returns (bool)
     {
-        EFGRates[_symbol] = _rate;
+        USDTRates[_symbol] = _rate;
         return true;
     }
 
@@ -354,13 +354,13 @@ contract LendingContract {
 
         uint256 EFGAmount = (_amount *
             collateralRates[_symbol] *
-            EFGRates[_symbol]) / 1e10;
+            computeEFGRate(USDTRates[_symbol], USDTRates["EFG"])) / 1e10;
         require(EFGAmount <= p.remainingEFG);
 
         /* save loan info */
         if (loanIsNew) {
             l.assetSymbol = _symbol;
-            l.xrate = EFGRates[_symbol];
+            l.xrate = computeEFGRate(USDTRates[_symbol], USDTRates["EFG"]);
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.pool = _pool_addr;
@@ -395,7 +395,7 @@ contract LendingContract {
             return false;
         }
         /* asset should exist */
-        if (EFGRates[_symbol] == 0) {
+        if (USDTRates[_symbol] == 0) {
             return false;
         }
 
@@ -407,7 +407,7 @@ contract LendingContract {
         (uint256 currentDebt, ) = getDebt(msg.sender);
         uint256 borrowPower = ((p.collateral[msg.sender][_symbol] - _amount) *
             collateralRates[_symbol]) / 1e4;
-        return ((borrowPower * EFGRates[_symbol]) / 1e6 > currentDebt);
+        return ((borrowPower * computeEFGRate(USDTRates[_symbol], USDTRates["EFG"])) / 1e6 > currentDebt);
     }
 
     /*
@@ -641,5 +641,19 @@ contract LendingContract {
     function getCollateralInfo(address _pool_addr, bytes8 _symbol) external view returns(uint256) {
         Pool storage p = poolsData[_pool_addr];
         return p.collateral[msg.sender][_symbol];
+    }
+
+     /*
+     * @notice computes asset/EFG rate
+     * @param _assetRate - asset/USDT
+     * @param _EFGRate - EFG/USDT
+     * @return uint256 - amount of the collateral , 6 decimals
+     */
+    function computeEFGRate(uint256 _assetRate, uint256 _EFGRate) internal pure returns(uint256) {
+        uint256 assetToEFG;
+        require((_EFGRate > 0) && (_assetRate > 0));
+
+        assetToEFG = (_assetRate * 1e6 )/ _EFGRate; /* 6 decimal places */
+        return assetToEFG;
     }
 }
