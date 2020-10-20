@@ -164,7 +164,7 @@ contract LendingContract {
         return assetAddress.length;
     }
 
-    /*
+    /**
      * @notice add new pool, only contract owner
      * @param _name - the pool name
      * @param  _leader_addr - address of the depositor(pool leader)
@@ -183,7 +183,7 @@ contract LendingContract {
         return pool.length;
     }
 
-    /*
+    /**
      * @notice add or purge oracles, only contract owner
      * @param _oracleAddr - the address of the oracle to be add or remove
      * @param _action - a boolean , if true add to list; else unauthorize
@@ -198,19 +198,19 @@ contract LendingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice get exchange rate of asset/USDT , 6 decimal places
-     * @param _symbol
+     * @param _symbol - asset's symbol
      * @return uint - the exchange rate between EFG and the asset
      */
     function getUSDTRates(bytes8 _symbol) public view returns (uint256) {
         return USDTRates[_symbol];
     }
 
-    /*
+    /**
      * @notice set exchnage rate of asset/USDT, 6 decimal places, only authorized oracle
-     * @param _symbol
-     * @param _rate
+     * @param _symbol - asset's symbol
+     * @param _rate - rate (asset/USDT)
      * @return bool
      */
     function setUSDTate(bytes8 _symbol, uint256 _rate)
@@ -222,9 +222,9 @@ contract LendingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice set interest rate , 4 decimal places, only contract owner
-     * @param _interestRate
+     * @param _interestRate - interest rate on EFG
      * @return bool
      */
     function setInterestRate(uint256 _interestRate)
@@ -236,18 +236,18 @@ contract LendingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice get interest rate, 4 decimal places
-     * @return uint - the interest rate of the asset
+     * @return uint - the interest rate of EFG
      */
     function getInterestRate() external view returns (uint256) {
         return interestRateEFG;
     }
 
-    /*
+    /**
      * @notice set collateral rate , 4 decimal places, only contract owner
-     * @param _symbol
-     * @param _rate
+     * @param _symbol - asset's symbol
+     * @param _rate - borrow power of the asset
      * @return bool
      */
     function setCollateralRate(bytes8 _symbol, uint256 _rate)
@@ -262,21 +262,21 @@ contract LendingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice get collateral rate, 4 decimal places
-     * @param _symbol
+     * @param _symbol -asset's symbol
      * @return bool
      */
     function getCollateralRate(bytes8 _symbol) public view returns (uint256) {
         return collateralRates[_symbol];
     }
 
-    /* Not payable, don't accept ECOC deposits directly - throw the transaction */
+    /* fallback not payable, don't accept ECOC deposits directly - throw the transaction */
     function() external {}
 
-    /*
+    /**
      * @notice Deposit ECOC
-     * @param _pool_addr
+     * @param _pool_addr - pool address
      * @return bool
      */
     function lockECOC(address _pool_addr)
@@ -297,11 +297,11 @@ contract LendingContract {
         return true;
     }
     
-    /*
+    /**
      * @notice Deposit ECRC20
      * @param _symbol - asset symbol
-     * @param _mount - amount of ECRC tokens
-     * @param _pool_addr
+     * @param _amount - amount of ECRC tokens
+     * @param _pool_addr - address of pool owner
      * @return bool
      */
     function lockAsset(bytes8 _symbol, uint256 _amount, address _pool_addr)
@@ -335,7 +335,7 @@ contract LendingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice use _symbol asset as collateral
      * @param _symbol symbolAsset
      * @param _pool_addr address of the pool
@@ -379,12 +379,11 @@ contract LendingContract {
         return EFGAmount;
     }
 
-    /*
+    /**
      * @notice used by borrow() function to avoid stack too deep problem
      * @param _symbol - asset symbol
      * @param _amount - amount of asset
      * @param _pool_addr - pool where the loan belongs
-     * @param uint - the total debt in EFG
      * @return bool - return true if everything is ok, else false
      */
     function enoughCollateral(
@@ -411,9 +410,9 @@ contract LendingContract {
         return ((borrowPower * computeEFGRate(USDTRates[_symbol], USDTRates["EFG"])) / 1e6 > currentDebt);
     }
 
-    /*
+    /**
      * @notice get EFG amount of debt
-     * @param _debtor
+     * @param _debtor - debtor's address
      * @return uint - the total debt in EFG
      * @return address - the pool where the loan exists
      */
@@ -427,7 +426,7 @@ contract LendingContract {
         return (totalDebt, d.poolAddr);
     }
 
-    /*
+    /**
      * @notice fully or partially repay ECOC
      * @param _amount of EFG to be payed back
      * @return bool
@@ -471,10 +470,10 @@ contract LendingContract {
         }
     }
 
-    /*
+    /**
      * @notice withdraw ECOC
      * @param _amount of ECOC to be withdrawn
-     * @param _beneficiars_addr
+     * @param _beneficiars_addr - withdrawal address
      * @return bool
      */
     function withdrawECOC(uint256 _amount, address _beneficiars_addr)
@@ -491,9 +490,9 @@ contract LendingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice withdraw EFG
-     * @param _amount of EFG
+     * @param _amount - EFG amount
      * @return bool
      */
     function withdrawEFG(uint256 _amount) external returns (bool) {
@@ -506,9 +505,9 @@ contract LendingContract {
         return true;
     }
     
-    /*
+    /**
      * @notice withdraw Asset (ECRC20)
-     * @param _amount of asset to be withdrawn
+     * @param _amount - amount of asset to be withdrawn
      * @return bool
      */
     function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns (bool) {
@@ -527,9 +526,9 @@ contract LendingContract {
         return false; 
     }
 
-    /*
+    /**
      * @notice margin call, only by pool owner and only on the condition that collateral has fallen short
-     * @param _debtors_addr
+     * @param _debtors_addr - address of debtor
      * @return bool
      */
     function marginCall(address _debtors_addr)
@@ -564,7 +563,7 @@ contract LendingContract {
        
     }
 
-    /*
+    /**
      * @notice withdraw GPT , owner only, can withdraw to any address
      * @param _beneficiar - destination address
      * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw total balance
@@ -588,7 +587,7 @@ contract LendingContract {
         }
     }
 
-    /*
+    /**
      * @notice display EFG balance
      * @param _address beneficiar's address
      * @return uint256
@@ -597,7 +596,7 @@ contract LendingContract {
         return EFGBalance[_address];
     }
 
-    /*
+    /**
      * @notice display asset balance
       @param _symbol asset
      * @param _address beneficiar's address
@@ -619,7 +618,7 @@ contract LendingContract {
         return pool;
     }
 
-    /*
+    /**
      * @notice returns loan's information
      * @param _debtor_addr - debtor
      * @return uint256 - EFG amount
@@ -644,7 +643,7 @@ contract LendingContract {
         return (l.assetSymbol, l.amount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
     }
 
-    /*
+    /**
      * @notice returns pool's information
      * @param _pool_addr - founder's address
      * @return bytes8 - pool name
@@ -662,7 +661,7 @@ contract LendingContract {
         return (p.name, p.remainingEFG);
     }
 
-    /*
+    /**
      * @notice returns amount of locked assets
      * @param _pool_addr - founder's address
      * @param _symbol - token symbol
@@ -673,7 +672,7 @@ contract LendingContract {
         return p.collateral[msg.sender][_symbol];
     }
 
-     /*
+     /**
      * @notice computes asset/EFG rate
      * @param _assetRate - asset/USDT
      * @param _EFGRate - EFG/USDT

@@ -26,7 +26,7 @@ contract StakingContract {
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     event WithdrawEFGEvent(bool result, address beneficiar, uint EFGAmount);
     
-    /*
+    /**
      * @notice users can deposit EFG for staking
      * @param _amount - deposit amount of EFG , 8 decimals
      * @return bool - true on success , else false
@@ -59,7 +59,7 @@ contract StakingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice claim any unclaimed GPT (withdraw)
      * @param _beneficiar - destination address
      * @return bool - true on success
@@ -93,7 +93,7 @@ contract StakingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice withdraw EFG , beneficiar can withdraw to any address
      * @param _beneficiar - destination address
      * @param _amount - amount of EFG to withdrawn
@@ -118,9 +118,9 @@ contract StakingContract {
         return true;
     }
 
-    /*
+    /**
      * @notice returns mining info for the beneficiar
-     * @param _beneficiar
+     * @param _beneficiar - beneficiar's address
      * @return (uint256, uint256, uint256) - returns locked EFG, last topup timestamp and unclaimed amount
      */
     function mintingInfo(address _beneficiar) external view returns (uint256, uint256, uint256) {
@@ -128,7 +128,7 @@ contract StakingContract {
         return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount));
     }
 
-    /*
+    /**
      * @notice return remaing GPT of smart contract , 4 decimal places
      * @return uint256 - the amount of remaining tokens
      */
@@ -136,9 +136,9 @@ contract StakingContract {
         return GPT.balanceOf(address(this));
     }
 
-    /*
+    /**
      * @notice updates the total staked GPT amount in a minting contract
-     * @param _minters_addr
+     * @param _minters_addr - address of minter
      */
     function updateUnclaimedAmount(address _minters_addr) internal {
         Minting storage m = locked[_minters_addr];
@@ -146,11 +146,11 @@ contract StakingContract {
         return ;
     }
 
-    /*
+    /**
      * @notice for computing the staked amount of last period only (pure function)
-     * @param _period
-     * @param _rate
-     * @param _staked
+     * @param _period -
+     * @param _rate -
+     * @param _staked -
      * return uint256 - the amount of unclaimed GPT
      */
 
