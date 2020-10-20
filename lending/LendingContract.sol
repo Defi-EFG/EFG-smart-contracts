@@ -26,7 +26,6 @@ contract LendingContract {
     uint256 secsIn7Hours = 7 * 60 * 60;
     uint256 private interestRateEFG; /* 4 decimal places */
     uint256 constant private periodRate = 5; /* portion of debt in GPT to get the 7 hours grace period , 2 decimal places (5%) */
-    uint256 constant private margin = 40; /* margin for activating liquidation , 2 decimal places (10%) */
 
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
@@ -48,7 +47,7 @@ contract LendingContract {
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
-        uint256 lastGracePeriod; /* */
+        uint256 lastGracePeriod; /* timestamp of last trigger of grace period*/
         uint256 remainingGPT; /* GPT left */
         address poolAddr; /* pool address */
     }
@@ -92,7 +91,7 @@ contract LendingContract {
         interestRateEFG = 1000;
 
         /* Initial collateral rate of ECOC is 25% , 4 decimal places. */
-        collateralRates["ECOC"] = 2500;
+        collateralRates["ECOC"] = 6000;
     }
 
     modifier ownerOnly() {
@@ -137,6 +136,8 @@ contract LendingContract {
         /* check if the caller is the pool leader*/
         address poolAddress = l.poolAddr;
         require(msg.sender == poolAddress) ;
+        /* check if grace period is still running */
+        require( (block.timestamp - l.lastGracePeriod) > secsIn7Hours );
         /* get total debt*/
         uint256 totalDebt;
         (totalDebt,) = getDebt(_debtors_addr);
@@ -145,7 +146,7 @@ contract LendingContract {
         uint256 collateralValue = (p.collateral[_debtors_addr][l.assetSymbol] *
             computeEFGRate(USDTRates[l.assetSymbol], USDTRates["EFG"])) / 1e6; /* rate has 6 decimal places */
 
-        require(totalDebt > collateralValue);
+        require(totalDebt > collateralValue * collateralRates[l.assetSymbol] / 1e4);
         _;
     }
 
@@ -216,11 +217,12 @@ contract LendingContract {
      * @param _rate - rate (asset/USDT)
      * @return bool
      */
-    function setUSDTate(bytes8 _symbol, uint256 _rate)
+    function setUSDTRate(bytes8 _symbol, uint256 _rate)
         external
         oracleOnly()
         returns (bool)
     {
+        require(_rate > 0);
         USDTRates[_symbol] = _rate;
         return true;
     }
