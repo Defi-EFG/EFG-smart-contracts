@@ -45,6 +45,7 @@ contract LendingContract {
         uint256 amount; /* in EFG , 8 digits */
         uint256 timestamp; /* timestamp of last update (creation or partial repay) */
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
+        uint256 collateralRate; /* Initial borrow power(collateral rate) , 4 digits */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
         uint256 lastGracePeriod; /* timestamp of last trigger of grace period*/
@@ -146,7 +147,7 @@ contract LendingContract {
         uint256 collateralValue = (p.collateral[_debtors_addr][l.assetSymbol] *
             computeEFGRate(USDTRates[l.assetSymbol], USDTRates["EFG"])) / 1e6; /* rate has 6 decimal places */
 
-        require(totalDebt > collateralValue * collateralRates[l.assetSymbol] / 1e4);
+        require(totalDebt > collateralValue * l.collateralRate / 1e4);
         _;
     }
 
@@ -207,7 +208,7 @@ contract LendingContract {
      * @param _symbol - asset's symbol
      * @return uint - the exchange rate between EFG and the asset
      */
-    function getUSDTRates(bytes8 _symbol) public view returns (uint256) {
+    function getUSDTRate(bytes8 _symbol) external view returns (uint256) {
         return USDTRates[_symbol];
     }
 
@@ -367,6 +368,7 @@ contract LendingContract {
         if (loanIsNew) {
             l.assetSymbol = _symbol;
             l.xrate = computeEFGRate(USDTRates[_symbol], USDTRates["EFG"]);
+            l.collateralRate = collateralRates[_symbol];
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = _pool_addr;
@@ -476,6 +478,7 @@ contract LendingContract {
             d.timestamp = 0;
             d.interestRate = 0;
             d.xrate = 0;
+            d.collateralRate = 0;
             d.interest = 0;
             d.lastGracePeriod = 0;
             d.remainingGPT = 0;
@@ -567,6 +570,7 @@ contract LendingContract {
         l.timestamp = 0;
         l.interestRate = 0;
         l.xrate = 0;
+        l.collateralRate = 0;
         l.interest = 0;
         l.lastGracePeriod = 0;
         l.remainingGPT = 0;
