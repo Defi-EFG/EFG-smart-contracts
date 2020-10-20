@@ -23,7 +23,10 @@ contract LendingContract {
     bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
     address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
     uint256 secsInYear = 365 * 24 * 60 * 60;
+    uint256 secsIn7Hours = 7 * 60 * 60;
     uint256 private interestRateEFG; /* 4 decimal places */
+    uint256 constant private periodRate = 5; /* portion of debt in GPT to get the 7 hours grace period , 2 decimal places (5%) */
+    uint256 constant private margin = 40; /* margin for activating liquidation , 2 decimal places (10%) */
 
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
@@ -45,6 +48,8 @@ contract LendingContract {
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
+        uint256 lastGracePeriod; /* */
+        uint256 remainingGPT; /* GPT left */
         address poolAddr; /* pool address */
     }
     mapping(address => Loan) private debt;
@@ -73,6 +78,7 @@ contract LendingContract {
         uint256 asset_amount
     );
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
+    event ExtendGracePeriodEvent(bool result, address debtors_addr, uint256 amount);
 
     constructor(address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
@@ -108,10 +114,7 @@ contract LendingContract {
 
     modifier poolExists(address _pool_addr) {
         bool exists;
-        /* also allow zero address */
-        if (_pool_addr == address(0x0)) {
-            _;
-        }
+
         for (uint256 i = 0; i < pool.length; i++) {
             if (pool[i] == _pool_addr) {
                 exists = true;
@@ -271,7 +274,7 @@ contract LendingContract {
         return collateralRates[_symbol];
     }
 
-    /* fallback not payable, don't accept ECOC deposits directly - throw the transaction */
+    /* fallback not payable, don't accept ECOC deposits directly; throw the transaction */
     function() external {}
 
     /**
@@ -466,6 +469,16 @@ contract LendingContract {
             balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
             p.collateral[msg.sender][d.assetSymbol] = 0;
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
+            /* reset loan data */
+            d.assetSymbol = "";
+            d.timestamp = 0;
+            d.interestRate = 0;
+            d.xrate = 0;
+            d.interest = 0;
+            d.lastGracePeriod = 0;
+            d.remainingGPT = 0;
+            d.poolAddr = address(0x0);
+
             return true;
         }
     }
@@ -553,14 +566,60 @@ contract LendingContract {
         l.interestRate = 0;
         l.xrate = 0;
         l.interest = 0;
-        l.poolAddr = address(0);
+        l.lastGracePeriod = 0;
+        l.remainingGPT = 0;
+        l.poolAddr = address(0x0);
 
         return true;
     }
 
-    
-    function extendGracePeriod() external returns(bool) {
-       
+    /**
+     * @notice deposit GPT to extend Grace Period
+     * @param _gpt_amount - amount of GPT to consume. If zero ,
+     * still can trigget the protection if enough GPT left from the previosu use
+     * @return bool - true on success, else false
+     */
+    function extendGracePeriod(uint256 _gpt_amount) external returns(bool) {
+        /* check if loan exists*/
+        Loan storage l = debt[msg.sender];
+        if (l.amount == 0) {
+            emit ExtendGracePeriodEvent(false, msg.sender , 0);
+            return false;
+        }
+
+        /* check if GPT is enough to activate the grace period */
+        (uint256 totalDebt,) = getDebt(msg.sender);
+        uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
+        if (totalDebt * periodRate / 1e2 > (l.remainingGPT + _gpt_amount) * GPTRate / 1e6) {
+            emit ExtendGracePeriodEvent(false, msg.sender , 0);
+            return false;
+        }
+
+        if (_gpt_amount != 0) {
+            /* deposit GPT  - it will fail if not appoved before */
+            bool result = GPT.transferFrom(msg.sender, address(this), _gpt_amount);
+            if (!result) {
+                emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
+                return false;
+            } else {
+                l.remainingGPT += _gpt_amount;
+            }
+        }
+
+        /* trigger the protection */
+        /* check if the last period expired or not;
+           if not, include the remaining time to the new period*/
+        uint256 period = secsIn7Hours;
+        if (block.timestamp - l.lastGracePeriod < secsIn7Hours) {
+            period += (block.timestamp - l.lastGracePeriod);
+        }
+
+        /* update loan data*/
+        l.lastGracePeriod = block.timestamp;
+        l.remainingGPT -= (totalDebt * periodRate / GPTRate) * 1e4; /* 1e6 * 1e-2*/
+        emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
+
+       return true;
     }
 
     /**
