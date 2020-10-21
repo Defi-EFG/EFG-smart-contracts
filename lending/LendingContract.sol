@@ -474,6 +474,7 @@ contract LendingContract {
             balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
             p.collateral[msg.sender][d.assetSymbol] = 0;
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
+            deposited[msg.sender][d.assetSymbol] = address(0x0);
             /* reset loan data */
             d.assetSymbol = "";
             d.timestamp = 0;
@@ -785,6 +786,7 @@ contract LendingContract {
         Pool storage p = poolsData[l.poolAddr];
         balance[msg.sender][_symbol] += p.collateral[msg.sender][_symbol];
         p.collateral[msg.sender][_symbol] = 0;
+        deposited[msg.sender][_symbol] = address(0x0);
         return;
     }
 
