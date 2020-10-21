@@ -551,16 +551,18 @@ contract LendingContract {
      */
     function marginCall(address _debtors_addr)
         external
-        ownerOnly()
         canSeize(_debtors_addr)
         returns (bool)
     {
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
         Pool storage p = poolsData[l.poolAddr];
-        balance[l.poolAddr][l.assetSymbol] +=  p.collateral[_debtors_addr][l.assetSymbol];
 
-         emit  MarginCallEvent(l.poolAddr, _debtors_addr, l.assetSymbol,
+        balance[l.poolAddr][l.assetSymbol] += l.collateralRate* p.collateral[_debtors_addr][l.assetSymbol] / 1e4
+        + ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol] / 1e4) / 2 ; /* 50% profit*/
+        balance[owner][l.assetSymbol] +=  ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol] / 1e4) / 2; /* 50% profit*/
+
+        emit  MarginCallEvent(l.poolAddr, _debtors_addr, l.assetSymbol,
             p.collateral[_debtors_addr][l.assetSymbol]);
 
         p.collateral[_debtors_addr][l.assetSymbol] = 0;
