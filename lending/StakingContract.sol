@@ -31,7 +31,7 @@ contract StakingContract {
      * @param _amount - deposit amount of EFG , 8 decimals
      * @return bool - true on success , else false
      */
-    function mintGPT(uint256 _amount) external returns(bool) {
+    function mintGPT(uint256 _amount) external returns(bool result) {
         require(_amount > 0);
         /* check if contract still has GPT */
         if (unclaimedGPT() == 0) {
@@ -39,7 +39,7 @@ contract StakingContract {
             return false;
         }
         /* transfer EFG to this contract - it will fail if not appoved before */
-        bool result = EFG.transferFrom(msg.sender, address(this), _amount);
+        result = EFG.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
             emit MintGPTEvent(false, msg.sender, _amount);
             return false;
@@ -64,7 +64,7 @@ contract StakingContract {
      * @param _beneficiar - destination address
      * @return bool - true on success
      */
-    function claimStakedGPT(address _beneficiar) external returns(bool) {
+    function claimStakedGPT(address _beneficiar) external returns(bool result) {
         /* first check if the contract has any GPT left*/
         require (unclaimedGPT() > 0);
         /* check if there was at least one EFG deposit*/
@@ -82,7 +82,7 @@ contract StakingContract {
         }
 
         /* send out the GPT */
-        bool result = GPT.transfer(_beneficiar, allowedGPT);
+        result = GPT.transfer(_beneficiar, allowedGPT);
         if (!result) {
             emit ClaimStakedGPT(false, _beneficiar, allowedGPT);
             return false;
@@ -99,12 +99,12 @@ contract StakingContract {
      * @param _amount - amount of EFG to withdrawn
      * @return bool - true on success
      */
-    function withdrawEFG(address _beneficiar, uint256 _amount) external returns (bool){
+    function withdrawEFG(address _beneficiar, uint256 _amount) external returns (bool result){
         Minting storage m = locked[msg.sender];
         require(_amount <= m.lockedAmount);
         
         /* send the tokens */
-        bool result = EFG.transfer(_beneficiar, _amount);
+        result = EFG.transfer(_beneficiar, _amount);
         if(!result) {
             emit WithdrawEFGEvent(false, msg.sender, _amount);
             return false;
@@ -123,7 +123,7 @@ contract StakingContract {
      * @param _beneficiar - beneficiar's address
      * @return (uint256, uint256, uint256) - returns locked EFG, last topup timestamp and unclaimed amount
      */
-    function mintingInfo(address _beneficiar) external view returns (uint256, uint256, uint256) {
+    function mintingInfo(address _beneficiar) external view returns(uint256 lockedEFG, uint256 lastTimestamp, uint256 unclaimedAmount) {
         Minting memory m = locked[_beneficiar];
         return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount));
     }
@@ -132,7 +132,7 @@ contract StakingContract {
      * @notice return remaing GPT of smart contract , 4 decimal places
      * @return uint256 - the amount of remaining tokens
      */
-    function unclaimedGPT() public view returns (uint256){
+    function unclaimedGPT() public view returns (uint256 contractGPTBalance){
         return GPT.balanceOf(address(this));
     }
 
