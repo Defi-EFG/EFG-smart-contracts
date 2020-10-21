@@ -99,7 +99,7 @@ contract StakingContract {
      * @param _amount - amount of EFG to withdrawn
      * @return bool - true on success
      */
-    function withdrawEFG(address _beneficiar, uint256 _amount) external returns (bool result){
+    function withdrawEFG(address _beneficiar, uint256 _amount) external returns(bool result){
         Minting storage m = locked[msg.sender];
         require(_amount <= m.lockedAmount);
         
@@ -132,7 +132,7 @@ contract StakingContract {
      * @notice return remaing GPT of smart contract , 4 decimal places
      * @return uint256 - the amount of remaining tokens
      */
-    function unclaimedGPT() public view returns (uint256 contractGPTBalance){
+    function unclaimedGPT() public view returns(uint256 contractGPTBalance){
         return GPT.balanceOf(address(this));
     }
 

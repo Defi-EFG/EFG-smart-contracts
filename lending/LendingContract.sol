@@ -160,7 +160,7 @@ contract LendingContract {
     function addNewAsset(bytes8 _symbol, address _contract_addr)
         external
         ownerOnly()
-        returns (uint256)
+        returns(uint256 numberOfAssets)
     {
         assetAddress.push(_contract_addr);
         assetName.push(_symbol);
@@ -180,7 +180,7 @@ contract LendingContract {
         bytes8 _name,
         address _leader_addr,
         uint256 _EFG_amount
-    ) external ownerOnly() returns (uint256) {
+    ) external ownerOnly() returns(uint256 numberOfPools) {
         pool.push(_leader_addr);
         Pool storage p = poolsData[_leader_addr];
         p.name = _name;
@@ -197,7 +197,7 @@ contract LendingContract {
     function authOracles(address _oracleAddr, bool _action)
         public
         ownerOnly()
-        returns (bool)
+        returns(bool result)
     {
         oracles[_oracleAddr] = _action;
         return true;
@@ -208,7 +208,7 @@ contract LendingContract {
      * @param _symbol - asset's symbol
      * @return uint - the exchange rate between EFG and the asset
      */
-    function getUSDTRate(bytes8 _symbol) external view returns (uint256) {
+    function getUSDTRate(bytes8 _symbol) external view returns(uint256 exchangeRate) {
         return USDTRates[_symbol];
     }
 
@@ -221,7 +221,7 @@ contract LendingContract {
     function setUSDTRate(bytes8 _symbol, uint256 _rate)
         external
         oracleOnly()
-        returns (bool)
+        returns(bool result)
     {
         require(_rate > 0);
         USDTRates[_symbol] = _rate;
@@ -236,7 +236,7 @@ contract LendingContract {
     function setInterestRate(uint256 _interestRate)
         external
         ownerOnly()
-        returns (bool)
+        returns(bool result)
     {
         interestRateEFG = _interestRate;
         return true;
@@ -246,7 +246,7 @@ contract LendingContract {
      * @notice get interest rate, 4 decimal places
      * @return uint - the interest rate of EFG
      */
-    function getInterestRate() external view returns (uint256) {
+    function getInterestRate() external view returns(uint256 EFGInterestRate) {
         return interestRateEFG;
     }
 
@@ -259,7 +259,7 @@ contract LendingContract {
     function setCollateralRate(bytes8 _symbol, uint256 _rate)
         public
         ownerOnly()
-        returns (bool)
+        returns(bool result)
     {
         /* rate shoude be in range (0-100%) */
         require(_rate > 0);
@@ -271,9 +271,9 @@ contract LendingContract {
     /**
      * @notice get collateral rate, 4 decimal places
      * @param _symbol -asset's symbol
-     * @return bool
+     * @return uint256 - collateral rate (borrow limit) of the asset
      */
-    function getCollateralRate(bytes8 _symbol) public view returns (uint256) {
+    function getCollateralRate(bytes8 _symbol) public view returns(uint256 collaterlRate) {
         return collateralRates[_symbol];
     }
 
@@ -289,7 +289,7 @@ contract LendingContract {
         external
         payable
         poolExists(_pool_addr)
-        returns (bool)
+        returns(bool result)
     {
         require(msg.value > 0);
         /* check if there is no Loan for ECOC */
@@ -313,7 +313,7 @@ contract LendingContract {
     function lockAsset(bytes8 _symbol, uint256 _amount, address _pool_addr)
         external
         poolExists(_pool_addr)
-        returns (bool)
+        returns(bool result)
     {
         require(_amount > 0);
         for (uint i=0; i<assetName.length; i++) {
@@ -352,7 +352,7 @@ contract LendingContract {
         bytes8 _symbol,
         address _pool_addr,
         uint256 _amount
-    ) public poolExists(_pool_addr) returns (uint256) {
+    ) public poolExists(_pool_addr) returns(uint256 borrowedEFG) {
         require(enoughCollateral(_symbol, _amount, _pool_addr));
         Pool storage p = poolsData[_pool_addr];
         Loan storage l = debt[msg.sender];
@@ -397,7 +397,7 @@ contract LendingContract {
         bytes8 _symbol,
         uint256 _amount,
         address _pool_addr
-    ) internal view returns (bool) {
+    ) internal view returns(bool) {
         if (_amount <= 0) {
             return false;
         }
@@ -423,9 +423,9 @@ contract LendingContract {
      * @return uint - the total debt in EFG
      * @return address - the pool where the loan exists
      */
-    function getDebt(address _debtor) public view returns (uint256, address) {
+    function getDebt(address _debtor) public view returns(uint256 totalDebt, address pollAddress) {
         Loan memory d = debt[_debtor];
-        uint256 totalDebt = d.amount + d.interest;
+        totalDebt = d.amount + d.interest;
         uint256 lastInterest = ((d.amount *
             ((block.timestamp - d.timestamp) * d.interestRate)) /
             (secsInYear * 1e4));
@@ -438,7 +438,7 @@ contract LendingContract {
      * @param _amount of EFG to be payed back
      * @return bool
      */
-    function repay(uint256 _amount) external returns (bool) {
+    function repay(uint256 _amount) external returns (bool result) {
         require(_amount > 0);
         require(_amount <= EFGBalance[msg.sender]);
 
@@ -497,7 +497,7 @@ contract LendingContract {
     function withdrawECOC(uint256 _amount, address _beneficiars_addr)
         external
         payable
-        returns (bool)
+        returns(bool result)
     {
         require(_amount > 0);
         require(_amount <= balance[msg.sender]["ECOC"]);
@@ -513,7 +513,7 @@ contract LendingContract {
      * @param _amount - EFG amount
      * @return bool
      */
-    function withdrawEFG(uint256 _amount) external returns (bool) {
+    function withdrawEFG(uint256 _amount) external returns(bool result) {
         require(_amount > 0);
         require(EFGBalance[msg.sender] >= _amount);
         EFGBalance[msg.sender] -= _amount;
@@ -528,7 +528,7 @@ contract LendingContract {
      * @param _amount - amount of asset to be withdrawn
      * @return bool
      */
-    function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns (bool) {
+    function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
         require(_amount > 0);
         for (uint i=0; i<assetName.length; i++) {
             if (assetName[i] == _symbol) {
@@ -552,7 +552,7 @@ contract LendingContract {
     function marginCall(address _debtors_addr)
         external
         canSeize(_debtors_addr)
-        returns (bool)
+        returns(bool result)
     {
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
@@ -587,7 +587,7 @@ contract LendingContract {
      * still can trigget the protection if enough GPT left from the previosu use
      * @return bool - true on success, else false
      */
-    function extendGracePeriod(uint256 _gpt_amount) external returns(bool) {
+    function extendGracePeriod(uint256 _gpt_amount) external returns(bool result) {
         /* check if loan exists*/
         Loan storage l = debt[msg.sender];
         if (l.amount == 0) {
@@ -636,7 +636,7 @@ contract LendingContract {
      * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw total balance
      * @return bool - true on success, else false
      */
-    function withdrawGPT(address _beneficiar, uint256 _amount) external ownerOnly() returns(bool){
+    function withdrawGPT(address _beneficiar, uint256 _amount) external ownerOnly() returns(bool result){
         require(GPT.balanceOf(address(this)) > 0);
         uint256 requestedAmount = _amount;
         if ((_amount == 0) || ((_amount > GPT.balanceOf(address(this))))) {
@@ -644,7 +644,7 @@ contract LendingContract {
         }
 
         /* send the GPT tokens */
-        bool result = GPT.transfer(_beneficiar, _amount);
+        result = GPT.transfer(_beneficiar, _amount);
         if(!result) {
             emit WithdrawGPTEvent(false, msg.sender, _amount);
             return false;
@@ -659,7 +659,7 @@ contract LendingContract {
      * @param _address beneficiar's address
      * @return uint256
      */
-    function getEFGBalance(address _address) external view returns (uint256) {
+    function getEFGBalance(address _address) external view returns(uint256 availableEFG) {
         return EFGBalance[_address];
     }
 
@@ -672,7 +672,7 @@ contract LendingContract {
     function getAssetBalance(bytes8 _symbol, address _address)
         external
         view
-        returns (uint256)
+        returns(uint256 )
     {
         return balance[_address][_symbol];
     }
