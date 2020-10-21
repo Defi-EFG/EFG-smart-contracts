@@ -328,7 +328,7 @@ contract LendingContract {
         require(l.assetSymbol != _symbol);
         
         /* send the tokens , it will fail if not appoved before */
-        bool result = token.transferFrom(msg.sender, address(this), _amount);
+        result = token.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
             emit LockAssetEvent(false, _symbol, msg.sender, _amount);
             return false;
@@ -605,7 +605,7 @@ contract LendingContract {
 
         if (_gpt_amount != 0) {
             /* deposit GPT  - it will fail if not appoved before */
-            bool result = GPT.transferFrom(msg.sender, address(this), _gpt_amount);
+            result = GPT.transferFrom(msg.sender, address(this), _gpt_amount);
             if (!result) {
                 emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
                 return false;
