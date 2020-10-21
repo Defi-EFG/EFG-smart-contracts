@@ -30,6 +30,7 @@ contract LendingContract {
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
     mapping(bytes8 => uint256) private USDTRates; /* 6 decimal places */
+    mapping(address => mapping(bytes8 => address)) private deposited; /* in which pool the asset is deposied */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
@@ -500,6 +501,7 @@ contract LendingContract {
         returns(bool result)
     {
         require(_amount > 0);
+        unlockCollateral("ECOC");
         require(_amount <= balance[msg.sender]["ECOC"]);
         balance[msg.sender]["ECOC"] -= _amount;
         _beneficiars_addr.transfer(_amount);
@@ -532,12 +534,13 @@ contract LendingContract {
         require(_amount > 0);
         for (uint i=0; i<assetName.length; i++) {
             if (assetName[i] == _symbol) {
-            require(balance[msg.sender][_symbol] >= _amount);
-            balance[msg.sender][_symbol] -= _amount;
-            /* send the tokens */
-            asset[i].transfer(msg.sender, _amount);
-            emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
-            return true;
+                unlockCollateral(_symbol);
+                require(balance[msg.sender][_symbol] >= _amount);
+                balance[msg.sender][_symbol] -= _amount;
+                /* send the tokens */
+                asset[i].transfer(msg.sender, _amount);
+                emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
+                return true;
             }
         }
         emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
@@ -752,4 +755,37 @@ contract LendingContract {
         assetToEFG = (_assetRate * 1e6 )/ _EFGRate; /* 6 decimal places */
         return assetToEFG;
     }
+
+     /**
+     * @notice get pool address of depositor
+     * @param _symbol - symbol asset
+     * @param _depositor - user who deposited the asset
+     * @return address - pool's address
+     */
+    function getDepositedPool(bytes8 _symbol, address _depositor) public view returns(address pollAddress) {
+        return deposited[_depositor][_symbol];
+    }
+
+    /**
+     * @notice unlock collateral
+     * @param _symbol - symbol asset
+     */
+    function unlockCollateral(bytes8 _symbol) internal {
+        /* check if loan exists */
+        Loan storage l =  debt[msg.sender];
+        if (l.assetSymbol != _symbol) {
+            return;
+        }
+
+        /* if locked amount never used for borrowing unlock the asset (move it outside of the pool) */
+        if (l.amount != 0) {
+            return;
+        }
+
+        Pool storage p = poolsData[l.poolAddr];
+        balance[msg.sender][_symbol] += p.collateral[msg.sender][_symbol];
+        p.collateral[msg.sender][_symbol] = 0;
+        return;
+    }
+
 }
