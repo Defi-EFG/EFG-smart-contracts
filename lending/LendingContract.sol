@@ -299,6 +299,7 @@ contract LendingContract {
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender]["ECOC"] += msg.value;
+        deposited[msg.sender]["ECOC"] = _pool_addr;
 
         emit LockECOCEvent(msg.sender, msg.value);
         return true;
@@ -338,6 +339,7 @@ contract LendingContract {
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
+        deposited[msg.sender][_symbol] = _pool_addr;
         emit LockAssetEvent(true, _symbol, msg.sender, _amount);
         return true;
     }
@@ -734,13 +736,14 @@ contract LendingContract {
 
     /**
      * @notice returns amount of locked assets
-     * @param _pool_addr - founder's address
+     * @param _debtors_addr - debtor's address
      * @param _symbol - token symbol
      * @return uint256 - amount of the collateral , 8 decimals
      */
-    function getCollateralInfo(address _pool_addr, bytes8 _symbol) external view returns(uint256) {
-        Pool storage p = poolsData[_pool_addr];
-        return p.collateral[msg.sender][_symbol];
+    function getCollateralInfo(address _debtors_addr, bytes8 _symbol) external view returns(uint256) {
+        address poolAddr = deposited[_debtors_addr][_symbol];
+        Pool storage p = poolsData[poolAddr];
+        return p.collateral[_debtors_addr][_symbol];
     }
 
      /**
