@@ -1,7 +1,4 @@
-pragma solidity 0.4.26;
-
-import "./ECRC20/EFGToken.sol";
-import "./ECRC20/GPTToken.sol";
+pragma solidity ^0.4.20;
 
 contract ECRC20 {
     function totalSupply() public constant returns (uint);
@@ -17,8 +14,8 @@ contract ECRC20 {
 contract LendingContract {
     address owner;
     address[] pool;
-    EFGToken EFG;
-    GPTToken GPT;
+    ECRC20 EFG;
+    ECRC20 GPT;
     ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
     bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
     address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
@@ -81,10 +78,10 @@ contract LendingContract {
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
     event ExtendGracePeriodEvent(bool result, address debtors_addr, uint256 amount);
 
-    constructor(address _EFG_addr, address _GPT_addr) public {
+    function LendingContract (address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
-        EFG = EFGToken(_EFG_addr); /* smart contract address of EFG */
-        GPT = GPTToken(_GPT_addr); /* smart contract address of GPT */
+        EFG = ECRC20(_EFG_addr); /* smart contract address of EFG */
+        GPT = ECRC20(_GPT_addr); /* smart contract address of GPT */
 
         /* interestRate is the rate per year the borrow must pay back
          * Initial rate is 10% per year
@@ -413,8 +410,8 @@ contract LendingContract {
         if (_amount > p.collateral[msg.sender][_symbol]) {
             return false;
         }
-
-        (uint256 currentDebt, ) = getDebt(msg.sender);
+	uint256 currentDebt;
+        (currentDebt, ) = getDebt(msg.sender);
         uint256 borrowPower = ((p.collateral[msg.sender][_symbol] - _amount) *
             collateralRates[_symbol]) / 1e4;
         return ((borrowPower * computeEFGRate(USDTRates[_symbol], USDTRates["EFG"])) / 1e6 > currentDebt);
@@ -602,7 +599,8 @@ contract LendingContract {
         }
 
         /* check if GPT is enough to activate the grace period */
-        (uint256 totalDebt,) = getDebt(msg.sender);
+        uint256 totalDebt;
+	(totalDebt, )  = getDebt(msg.sender);
         uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
         if (totalDebt * periodRate / 1e2 > (l.remainingGPT + _gpt_amount) * GPTRate / 1e6) {
             emit ExtendGracePeriodEvent(false, msg.sender , 0);

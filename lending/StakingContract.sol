@@ -1,18 +1,26 @@
-pragma solidity 0.4.26;
+pragma solidity ^0.4.20;
 
-import "./ECRC20/EFGToken.sol";
-import "./ECRC20/GPTToken.sol";
+contract ECRC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
 
 contract StakingContract {
     address owner;
     uint256 mintingRate;
-    GPTToken GPT;
-    EFGToken EFG;
+    ECRC20 GPT;
+    ECRC20 EFG;
 
-    constructor (address _EFG_addr,address  _GPT_addr) {
+    function StakingContract (address _EFG_addr,address  _GPT_addr) {
         mintingRate = 1286; /* mining rate per second in e-16 */
-        GPT = GPTToken(_GPT_addr); /* smart contract address of GPT , 4 decimal places */
-        EFG = EFGToken(_EFG_addr); /* smart contract address of EFG , 8 decimal places*/
+        GPT = ECRC20(_GPT_addr); /* smart contract address of GPT , 4 decimal places */
+        EFG = ECRC20(_EFG_addr); /* smart contract address of EFG , 8 decimal places*/
     }
 
     struct Minting {
