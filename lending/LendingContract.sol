@@ -55,8 +55,8 @@ contract LendingContract {
     mapping(address => Loan) private debt;
 
     /* Events */
-    event LockECOCEvent(address depositor, uint256 ecoc_amount);
-    event LockAssetEvent(bool result, bytes8 _symbol, address depositor, uint256 _amount);
+    event DepositECOCEvent(address depositor, uint256 ecoc_amount);
+    event DepositAssetEvent(bool result, bytes8 _symbol, address depositor, uint256 _amount);
     event WithdrawECOCEvent(
         address user_account,
         address beneficiar,
@@ -271,7 +271,7 @@ contract LendingContract {
      * @param _pool_addr - pool address
      * @return bool
      */
-    function lockECOC(address _pool_addr)
+    function depositECOC(address _pool_addr)
         external
         payable
         poolExists(_pool_addr)
@@ -291,7 +291,7 @@ contract LendingContract {
         l.deposits["ECOC"] += msg.value;
         l.poolAddr = _pool_addr;
 
-        emit LockECOCEvent(msg.sender, msg.value);
+        emit DepositECOCEvent(msg.sender, msg.value);
         return true;
     }
     
@@ -302,7 +302,7 @@ contract LendingContract {
      * @param _pool_addr - address of pool owner
      * @return bool
      */
-    function lockAsset(bytes8 _symbol, uint256 _amount, address _pool_addr)
+    function depositAsset(bytes8 _symbol, uint256 _amount, address _pool_addr)
         external
         poolExists(_pool_addr)
         returns(bool result)
@@ -321,14 +321,14 @@ contract LendingContract {
         /* send the tokens , it will fail if not appoved before */
         result = token.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
-            emit LockAssetEvent(false, _symbol, msg.sender, _amount);
+            emit DepositAssetEvent(false, _symbol, msg.sender, _amount);
             return false;
         }        
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
         deposited[msg.sender][_symbol] = _pool_addr;
-        emit LockAssetEvent(true, _symbol, msg.sender, _amount);
+        emit DepositEvent(true, _symbol, msg.sender, _amount);
         return true;
     }
 
