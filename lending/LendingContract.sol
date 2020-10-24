@@ -39,8 +39,10 @@ contract LendingContract {
     mapping(address => Pool) private poolsData;
 
     struct Loan {
-        bytes8 assetSymbol; /* can be ECOC or any ECRC20 */
-        uint256 amount; /* in EFG , 8 digits */
+        bool locked; /* while locked, the loan is in use. Debtor can't add or withdraw any collateral */
+        bytes8[] assetSymbol; /* can be ECOC or any ECRC20 */
+        mapping(bytes8 => uint256) deposits; /* deposited collateral for this loan */
+        uint256 EFGamount; /* amount in EFG , 8 digits */
         uint256 timestamp; /* timestamp of last update (creation or partial repay) */
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
         uint256 collateralRate; /* Initial borrow power(collateral rate) , 4 digits */
@@ -131,7 +133,7 @@ contract LendingContract {
     modifier canSeize(address _debtors_addr) {
         /* check if a loan exists */
         Loan storage l =  debt[_debtors_addr];
-        require(l.amount != 0);
+        require(l.EFGamount != 0);
         /* check if the caller is the pool leader*/
         address poolAddress = l.poolAddr;
         require(msg.sender == poolAddress) ;
@@ -374,12 +376,12 @@ contract LendingContract {
             l.poolAddr = _pool_addr;
         } else {
             l.interest +=
-                (l.amount *
+                (l.EFGamount *
                     ((block.timestamp - l.timestamp) * l.interestRate)) /
                 (secsInYear * 1e4);
         }
         l.timestamp = block.timestamp;
-        l.amount += EFGAmount;
+        l.EFGamount += EFGAmount;
         p.remainingEFG -= EFGAmount;
 
         emit BorrowEvent(loanIsNew, _pool_addr, msg.sender, EFGAmount);
@@ -425,8 +427,8 @@ contract LendingContract {
      */
     function getDebt(address _debtor) public view returns(uint256 totalDebt, address pollAddress) {
         Loan memory d = debt[_debtor];
-        totalDebt = d.amount + d.interest;
-        uint256 lastInterest = ((d.amount *
+        totalDebt = d.EFGamount + d.interest;
+        uint256 lastInterest = ((d.EFGamount *
             ((block.timestamp - d.timestamp) * d.interestRate)) /
             (secsInYear * 1e4));
         totalDebt += lastInterest;
@@ -443,7 +445,7 @@ contract LendingContract {
         require(_amount <= EFGBalance[msg.sender]);
 
         Loan storage d = debt[msg.sender];
-        require(d.amount !=0 );
+        require(d.EFGamount !=0 );
         Pool storage p = poolsData[d.poolAddr];
 
         if (_amount <= d.interest) {
@@ -458,16 +460,16 @@ contract LendingContract {
         /* repay amount is greater than interest, decrease the loan */
         uint256 amountLeft = _amount - d.interest;
         d.interest = 0;
-        if (d.amount > amountLeft) {
-            d.amount -= amountLeft;
+        if (d.EFGamount > amountLeft) {
+            d.EFGamount -= amountLeft;
             EFGBalance[msg.sender] -= _amount;
             p.remainingEFG += _amount;
             emit RepayEvent(false , msg.sender, _amount);
             return true;
         } else {
             /* loan repayed in full, release the collateral */
-            amountLeft -= d.amount;
-            d.amount = 0;
+            amountLeft -= d.EFGamount;
+            d.EFGamount = 0;
             EFGBalance[msg.sender] -= (_amount - amountLeft);
             p.remainingEFG += (_amount - amountLeft);
             balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
@@ -571,7 +573,7 @@ contract LendingContract {
         p.collateral[_debtors_addr][l.assetSymbol] = 0;
         /* reset the loan data */
         l.assetSymbol = "";
-        l.amount = 0;
+        l.EFGamount = 0;
         l.timestamp = 0;
         l.interestRate = 0;
         l.xrate = 0;
@@ -593,7 +595,7 @@ contract LendingContract {
     function extendGracePeriod(uint256 _gpt_amount) external returns(bool result) {
         /* check if loan exists*/
         Loan storage l = debt[msg.sender];
-        if (l.amount == 0) {
+        if (l.EFGamount == 0) {
             emit ExtendGracePeriodEvent(false, msg.sender , 0);
             return false;
         }
@@ -711,7 +713,7 @@ contract LendingContract {
         )
     {
         Loan memory l = debt[_debtor_addr];
-        return (l.assetSymbol, l.amount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
+        return (l.assetSymbol, l.EFGamount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
     }
 
     /**
@@ -780,7 +782,7 @@ contract LendingContract {
         }
 
         /* if locked amount never used for borrowing unlock the asset (move it outside of the pool) */
-        if (l.amount != 0) {
+        if (l.EFGamount != 0) {
             return;
         }
 
@@ -789,6 +791,16 @@ contract LendingContract {
         p.collateral[msg.sender][_symbol] = 0;
         deposited[msg.sender][_symbol] = address(0x0);
         return;
+    }
+
+    /**
+     * @notice compute total collateral value in USDT
+     * @param _depositors_addr - address of the depositor
+     * @return uint - total collateral value in USDT
+     */
+    function computeCollateralValue(address _depositors_addr) internal returns (uint value) {
+        /* todo: implementation */
+        return 0;
     }
 
 }
