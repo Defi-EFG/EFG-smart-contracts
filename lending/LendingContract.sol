@@ -27,7 +27,6 @@ contract LendingContract {
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
     mapping(bytes8 => uint256) private USDTRates; /* 6 decimal places */
-    mapping(address => mapping(bytes8 => address)) private deposited; /* in which pool the asset is deposied */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
@@ -91,7 +90,7 @@ contract LendingContract {
          */
         interestRateEFG = 1000;
 
-        /* Initial collateral rate of ECOC is 25% , 4 decimal places. */
+        /* Initial collateral rate of ECOC is 60% , 4 decimal places. */
         collateralRates["ECOC"] = 6000;
     }
 
@@ -278,13 +277,12 @@ contract LendingContract {
         returns(bool result)
     {
         require(msg.value > 0);
-        /* check if there is no Loan for ECOC */
+        /* check if loan is locked */
         Loan storage l = debt[msg.sender];
         require(!l.locked);
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender]["ECOC"] += msg.value;
-        deposited[msg.sender]["ECOC"] = _pool_addr;
 
         /* Initialize the Loan */
         l.assetSymbol.push("ECOC");
@@ -309,14 +307,14 @@ contract LendingContract {
     {
         require(_amount > 0);
         int index = stringSearch(assetName, _symbol);
+        /* check if asset is acceptable */
         if ( index ==-1) {
                 return false;
         }
-
         ECRC20 token = ECRC20(assetAddress[uint(index)]);
-        /* check if there is no Loan for this asset */
+        /* check if the loan is unlocked */
         Loan memory l = debt[msg.sender];
-        require(l.assetSymbol != _symbol);
+        require(!l.locked);
         
         /* send the tokens , it will fail if not appoved before */
         result = token.transferFrom(msg.sender, address(this), _amount);
@@ -327,8 +325,8 @@ contract LendingContract {
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
-        deposited[msg.sender][_symbol] = _pool_addr;
-        emit DepositEvent(true, _symbol, msg.sender, _amount);
+        l.deposits[_symbol] = _amount; 
+        emit DepositAssetEvent(true, _symbol, msg.sender, _amount);
         return true;
     }
 
@@ -340,15 +338,13 @@ contract LendingContract {
      * @return uint256 - total borrowed EFG
      */
     function borrow(
-        bytes8 _symbol,
         address _pool_addr,
         uint256 _amount
     ) public poolExists(_pool_addr) returns(uint256 borrowedEFG) {
-        require(enoughCollateral(_symbol, _amount, _pool_addr));
+        require(enoughCollateral(_amount, _pool_addr));
         Pool storage p = poolsData[_pool_addr];
         Loan storage l = debt[msg.sender];
-        bool loanIsNew = (l.timestamp == 0);
-        require(loanIsNew || l.assetSymbol == _symbol);
+        bool loanIsNew = (l.locked);
 
         uint256 EFGAmount = (_amount *
             collateralRates[_symbol] *
@@ -357,9 +353,8 @@ contract LendingContract {
 
         /* save loan info */
         if (loanIsNew) {
-            l.assetSymbol = _symbol;
-            l.xrate = computeEFGRate(USDTRates[_symbol], USDTRates["EFG"]);
-            l.collateralRate = collateralRates[_symbol];
+            l.xrate = USDTRates["EFG"];
+            //l.collateralRate = collateralRates[_symbol]; ???
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = _pool_addr;
@@ -385,18 +380,13 @@ contract LendingContract {
      * @return bool - return true if everything is ok, else false
      */
     function enoughCollateral(
-        bytes8 _symbol,
         uint256 _amount,
         address _pool_addr
     ) internal view returns(bool) {
         if (_amount <= 0) {
             return false;
         }
-        /* asset should exist */
-        if (USDTRates[_symbol] == 0) {
-            return false;
-        }
-
+        
         Pool storage p = poolsData[_pool_addr];
         if (_amount > p.collateral[msg.sender][_symbol]) {
             return false;
@@ -464,7 +454,6 @@ contract LendingContract {
             balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
             p.collateral[msg.sender][d.assetSymbol] = 0;
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
-            deposited[msg.sender][d.assetSymbol] = address(0x0);
             /* reset loan data */
             d.assetSymbol = "";
             d.timestamp = 0;
@@ -591,7 +580,7 @@ contract LendingContract {
 
         /* check if GPT is enough to activate the grace period */
         uint256 totalDebt;
-	(totalDebt, )  = getDebt(msg.sender);
+	    (totalDebt, )  = getDebt(msg.sender);
         uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
         if (totalDebt * periodRate / 1e2 > (l.remainingGPT + _gpt_amount) * GPTRate / 1e6) {
             emit ExtendGracePeriodEvent(false, msg.sender , 0);
@@ -693,7 +682,6 @@ contract LendingContract {
         external
         view
         returns (
-            bytes8 assetSymbol,
             uint256 amount,
             uint256 timestamp,
             uint256 interestRate,
@@ -730,9 +718,8 @@ contract LendingContract {
      * @return uint256 - amount of the collateral , 8 decimals
      */
     function getCollateralInfo(address _debtors_addr, bytes8 _symbol) external view returns(uint256) {
-        address poolAddr = deposited[_debtors_addr][_symbol];
-        Pool storage p = poolsData[poolAddr];
-        return p.collateral[_debtors_addr][_symbol];
+        Loan memory l = debt[_debtors_addr];
+        return l.deposits[_symbol];
     }
 
      /**
@@ -747,16 +734,6 @@ contract LendingContract {
 
         assetToEFG = (_assetRate * 1e6 )/ _EFGRate; /* 6 decimal places */
         return assetToEFG;
-    }
-
-     /**
-     * @notice get pool address of depositor
-     * @param _symbol - symbol asset
-     * @param _depositor - user who deposited the asset
-     * @return address - pool's address
-     */
-    function getDepositedPool(bytes8 _symbol, address _depositor) public view returns(address pollAddress) {
-        return deposited[_depositor][_symbol];
     }
 
     /**
@@ -778,7 +755,6 @@ contract LendingContract {
         Pool storage p = poolsData[l.poolAddr];
         balance[msg.sender][_symbol] += p.collateral[msg.sender][_symbol];
         p.collateral[msg.sender][_symbol] = 0;
-        deposited[msg.sender][_symbol] = address(0x0);
         return;
     }
 
@@ -798,7 +774,7 @@ contract LendingContract {
      * @param _element - what to search
      * @return int - array index if elemnt exists, else -1
      */
-    function addressSearch(address[] _targetArray, address _element) internal  returns (int index) {
+    function addressSearch(address[] _targetArray, address _element) internal pure returns (int index) {
         index = -1;
         for (uint i = 0; i < _targetArray.length; i++) {
             if (_targetArray[i] == _element) {
