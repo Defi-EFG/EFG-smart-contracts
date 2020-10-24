@@ -101,12 +101,12 @@ contract LendingContract {
     }
 
     modifier poolOwnerOnly() {
-        require(!(addressSearch(pool[], msg.sender) == -1 ));
+        require(!(addressSearch(pool, msg.sender) == -1 ));
         _;
     }
 
     modifier poolExists(address _pool_addr) {
-         require(!(addressSearch(pool[], _pool_addr) == -1 ));
+         require(!(addressSearch(pool, _pool_addr) == -1 ));
         _;
     }
     
@@ -129,9 +129,10 @@ contract LendingContract {
         (totalDebt,) = getDebt(_debtors_addr);
         /* compute current collateral value for this asset*/
         Pool storage p = poolsData[poolAddress];
+        /*
         uint256 collateralValue = (p.collateral[_debtors_addr][l.assetSymbol] *
             computeEFGRate(USDTRates[l.assetSymbol], USDTRates["EFG"])) / 1e6; /* rate has 6 decimal places */
-
+        uint256 collateralValue = computeCollateralValue(_debtors_addr);
         require(totalDebt > collateralValue * l.collateralRate / 1e4);
         _;
     }
@@ -278,7 +279,7 @@ contract LendingContract {
     {
         require(msg.value > 0);
         /* check if there is no Loan for ECOC */
-        Loan memory l = debt[msg.sender];
+        Loan storage l = debt[msg.sender];
         require(!l.locked);
 
         Pool storage p = poolsData[_pool_addr];
@@ -287,7 +288,7 @@ contract LendingContract {
 
         /* Initialize the Loan */
         l.assetSymbol.push("ECOC");
-        l.deposits["ECOC"] = += msg.value;
+        l.deposits["ECOC"] += msg.value;
         l.poolAddr = _pool_addr;
 
         emit LockECOCEvent(msg.sender, msg.value);
@@ -307,12 +308,12 @@ contract LendingContract {
         returns(bool result)
     {
         require(_amount > 0);
-        int index = stringExists(assetName, _symbol);
+        int index = stringSearch(assetName, _symbol);
         if ( index ==-1) {
                 return false;
         }
 
-        ECRC20 token = ECRC20(assetAddress[index]);
+        ECRC20 token = ECRC20(assetAddress[uint(index)]);
         /* check if there is no Loan for this asset */
         Loan memory l = debt[msg.sender];
         require(l.assetSymbol != _symbol);
@@ -532,7 +533,7 @@ contract LendingContract {
         require(balance[msg.sender][_symbol] >= _amount);
         balance[msg.sender][_symbol] -= _amount;
         /* send the tokens */
-        asset[index].transfer(msg.sender, _amount);
+        asset[uint(index)].transfer(msg.sender, _amount);
         emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
         return true;        
     }
@@ -797,11 +798,11 @@ contract LendingContract {
      * @param _element - what to search
      * @return int - array index if elemnt exists, else -1
      */
-    function addressSearch(address _targetArray, address _element) internal pure returns (int index) {
+    function addressSearch(address[] _targetArray, address _element) internal  returns (int index) {
         index = -1;
-        for (int i = 0; i < _targetArray.length; i++) {
+        for (uint i = 0; i < _targetArray.length; i++) {
             if (_targetArray[i] == _element) {
-                index = i;
+                index = int(i);
                 break;
             }
         }
@@ -814,11 +815,11 @@ contract LendingContract {
      * @param _element - what to search
      * @return int - array index if elemnt exists, else -1
      */
-    function stringSearch(bytes8[] _targetArray, bytes8[] _element) internal pure returns (int index) {
+    function stringSearch(bytes8[] _targetArray, bytes8 _element) internal pure returns (int index) {
         index = -1;
-        for (int i = 0; i < _targetArray.length; i++) {
+        for (uint i = 0; i < _targetArray.length; i++) {
             if (_targetArray[i] == _element) {
-                index = i;
+                index = int(i);
                 break;
             }
         }
