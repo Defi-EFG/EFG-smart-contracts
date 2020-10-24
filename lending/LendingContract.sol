@@ -101,27 +101,12 @@ contract LendingContract {
     }
 
     modifier poolOwnerOnly() {
-        bool exists;
-        for (uint256 i = 0; i < pool.length; i++) {
-            if (pool[i] == msg.sender) {
-                exists = true;
-                break;
-            }
-        }
-        require(exists);
+        require(!(addressSearch(pool[], msg.sender) == -1 ));
         _;
     }
 
     modifier poolExists(address _pool_addr) {
-        bool exists;
-
-        for (uint256 i = 0; i < pool.length; i++) {
-            if (pool[i] == _pool_addr) {
-                exists = true;
-                break;
-            }
-        }
-        require(exists);
+         require(!(addressSearch(pool[], _pool_addr) == -1 ));
         _;
     }
     
@@ -151,7 +136,7 @@ contract LendingContract {
         _;
     }
 
-    /*
+    /**
      * @notice add new asset, only contract owner
      * @param _symbol - the symbol of the asset
      * @param  _contract_addr - smart contract address of the ECRC20
@@ -294,11 +279,16 @@ contract LendingContract {
         require(msg.value > 0);
         /* check if there is no Loan for ECOC */
         Loan memory l = debt[msg.sender];
-        require(l.assetSymbol != "ECOC");
+        require(!l.locked);
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender]["ECOC"] += msg.value;
         deposited[msg.sender]["ECOC"] = _pool_addr;
+
+        /* Initialize the Loan */
+        l.assetSymbol.push("ECOC");
+        l.deposits["ECOC"] = += msg.value;
+        l.poolAddr = _pool_addr;
 
         emit LockECOCEvent(msg.sender, msg.value);
         return true;
@@ -317,13 +307,12 @@ contract LendingContract {
         returns(bool result)
     {
         require(_amount > 0);
-        for (uint i=0; i<assetName.length; i++) {
-            if (assetName[i] == _symbol) {
-                ECRC20 token = ECRC20(assetAddress[1]);
-                break;
-            }
-            return false;
+        int index = stringExists(assetName, _symbol);
+        if ( index ==-1) {
+                return false;
         }
+
+        ECRC20 token = ECRC20(assetAddress[index]);
         /* check if there is no Loan for this asset */
         Loan memory l = debt[msg.sender];
         require(l.assetSymbol != _symbol);
@@ -333,8 +322,7 @@ contract LendingContract {
         if (!result) {
             emit LockAssetEvent(false, _symbol, msg.sender, _amount);
             return false;
-        }
-        
+        }        
 
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
@@ -534,19 +522,19 @@ contract LendingContract {
      */
     function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
         require(_amount > 0);
-        for (uint i=0; i<assetName.length; i++) {
-            if (assetName[i] == _symbol) {
-                unlockCollateral(_symbol);
-                require(balance[msg.sender][_symbol] >= _amount);
-                balance[msg.sender][_symbol] -= _amount;
-                /* send the tokens */
-                asset[i].transfer(msg.sender, _amount);
-                emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
-                return true;
-            }
-        }
-        emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
+        int index = stringSearch(assetName, _symbol);
+        if (index == -1) {
+            emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
         return false; 
+        }
+
+        unlockCollateral(_symbol);
+        require(balance[msg.sender][_symbol] >= _amount);
+        balance[msg.sender][_symbol] -= _amount;
+        /* send the tokens */
+        asset[index].transfer(msg.sender, _amount);
+        emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
+        return true;        
     }
 
     /**
@@ -803,4 +791,37 @@ contract LendingContract {
         return 0;
     }
 
+    /**
+     * @notice search element in array
+     * @param _targetArray - array to be searched
+     * @param _element - what to search
+     * @return int - array index if elemnt exists, else -1
+     */
+    function addressSearch(address _targetArray, address _element) internal pure returns (int index) {
+        index = -1;
+        for (int i = 0; i < _targetArray.length; i++) {
+            if (_targetArray[i] == _element) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
+    /**
+     * @notice search element in array
+     * @param _targetArray - array to be searched
+     * @param _element - what to search
+     * @return int - array index if elemnt exists, else -1
+     */
+    function stringSearch(bytes8[] _targetArray, bytes8[] _element) internal pure returns (int index) {
+        index = -1;
+        for (int i = 0; i < _targetArray.length; i++) {
+            if (_targetArray[i] == _element) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
 }
