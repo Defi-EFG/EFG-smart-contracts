@@ -73,9 +73,7 @@ contract LendingContract {
     );
     event MarginCallEvent(
         address pool,
-        address borrower,
-        bytes32 assetSymbol,
-        uint256 asset_amount
+        address borrower
     );
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
     event ExtendGracePeriodEvent(bool result, address debtors_addr, uint256 amount);
@@ -315,7 +313,7 @@ contract LendingContract {
         }
         ECRC20 token = ECRC20(assetAddress[uint(index)]);
         /* check if the loan is unlocked */
-        Loan memory l = debt[msg.sender];
+        Loan storage l = debt[msg.sender];
         require(!l.locked);
 
         /* send the tokens , it will fail if not appoved before */
@@ -447,12 +445,13 @@ contract LendingContract {
             d.EFGamount = 0;
             EFGBalance[msg.sender] -= (_amount - amountLeft);
             p.remainingEFG += (_amount - amountLeft);
+	    /* release all collateral */
             balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
-            p.collateral[msg.sender][d.assetSymbol] = 0;
+	    p.collateral[msg.sender][d.assetSymbol] = 0;
+	    d.assetSymbol = "";
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
             usersPool[msg.sender] = address(0x0);
             /* reset loan data */
-            d.assetSymbol = "";
             d.timestamp = 0;
             d.interestRate = 0;
             d.xrate = 0;
@@ -538,16 +537,19 @@ contract LendingContract {
         Loan storage l = debt[_debtors_addr];
         Pool storage p = poolsData[l.poolAddr];
 
-        balance[l.poolAddr][l.assetSymbol] += l.collateralRate* p.collateral[_debtors_addr][l.assetSymbol] / 1e4
-        + ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol] / 1e4) / 2 ; /* 50% profit*/
-        balance[owner][l.assetSymbol] +=  ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol] / 1e4) / 2; /* 50% profit*/
+	for (uint i=0; i < l.assetSymbol.length; i++ ) {
+	  balance[l.poolAddr][l.assetSymbol[i]] += l.collateralRate* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4
+	    + ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2 ; /* 50% profit*/
+	  balance[owner][l.assetSymbol[i]] +=  ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
+	  /* also, remove the asssets from the pool */
+	  p.collateral[_debtors_addr][l.assetSymbol[i]] = 0;
+	}
+        emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
-        emit  MarginCallEvent(l.poolAddr, _debtors_addr, l.assetSymbol,
-            p.collateral[_debtors_addr][l.assetSymbol]);
-
-        p.collateral[_debtors_addr][l.assetSymbol] = 0;
         /* reset the loan data */
-        l.assetSymbol = "";
+	for (i=0; i < l.assetSymbol.length; i++ ) {
+	  l.assetSymbol[i] = "";
+	}
         l.EFGamount = 0;
         l.timestamp = 0;
         l.interestRate = 0;
@@ -715,7 +717,7 @@ contract LendingContract {
      * @return uint256 - amount of the collateral , 8 decimals
      */
     function getCollateralInfo(address _debtors_addr, bytes8 _symbol) external view returns(uint256) {
-        Loan memory l = debt[_debtors_addr];
+        Loan storage l = debt[_debtors_addr];
         return l.deposits[_symbol];
     }
 
