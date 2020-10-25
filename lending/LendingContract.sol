@@ -27,6 +27,7 @@ contract LendingContract {
     mapping(address => bool) private oracles;
     mapping(bytes8 => uint256) private collateralRates; /* 4 decimal places */
     mapping(bytes8 => uint256) private USDTRates; /* 6 decimal places */
+    mapping(address => address) private usersPool; /* in which pool the user deposited his collaterals */
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
@@ -281,6 +282,7 @@ contract LendingContract {
         Loan storage l = debt[msg.sender];
         require(!l.locked);
 
+        usersPool[msg.sender] = _pool_addr;
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender]["ECOC"] += msg.value;
 
@@ -323,6 +325,7 @@ contract LendingContract {
             return false;
         }        
 
+        usersPool[msg.sender] = _pool_addr;
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
         l.deposits[_symbol] = _amount; 
@@ -332,7 +335,6 @@ contract LendingContract {
 
     /**
      * @notice use _symbol asset as collateral
-     * @param _symbol symbolAsset
      * @param _pool_addr address of the pool
      * @param _amount of asset as collateral
      * @return uint256 - total borrowed EFG
@@ -341,14 +343,15 @@ contract LendingContract {
         address _pool_addr,
         uint256 _amount
     ) public poolExists(_pool_addr) returns(uint256 borrowedEFG) {
+
         require(enoughCollateral(_amount, _pool_addr));
         Pool storage p = poolsData[_pool_addr];
         Loan storage l = debt[msg.sender];
         bool loanIsNew = (l.locked);
 
         uint256 EFGAmount = (_amount *
-            collateralRates[_symbol] *
-            computeEFGRate(USDTRates[_symbol], USDTRates["EFG"])) / 1e10;
+            computeBorrowingPower(msg.sender) *
+            USDTRates["EFG"]) / 1e10;
         require(EFGAmount <= p.remainingEFG);
 
         /* save loan info */
@@ -374,7 +377,6 @@ contract LendingContract {
 
     /**
      * @notice used by borrow() function to avoid stack too deep problem
-     * @param _symbol - asset symbol
      * @param _amount - amount of asset
      * @param _pool_addr - pool where the loan belongs
      * @return bool - return true if everything is ok, else false
@@ -454,6 +456,7 @@ contract LendingContract {
             balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
             p.collateral[msg.sender][d.assetSymbol] = 0;
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
+            usersPool[msg.sender] = address(0x0);
             /* reset loan data */
             d.assetSymbol = "";
             d.timestamp = 0;
@@ -722,6 +725,15 @@ contract LendingContract {
         return l.deposits[_symbol];
     }
 
+    /**
+     * @notice returns the pool address
+     * @param _debtors_addr - debtor's address
+     * @return uint256 - pools address or the zero address if no collateral exists
+     */
+    function getUserPool(address _depositors_addr) external view returns(address) {
+        return usersPool[_depositors_addr];
+    }
+
      /**
      * @notice computes asset/EFG rate
      * @param _assetRate - asset/USDT
@@ -764,6 +776,16 @@ contract LendingContract {
      * @return uint - total collateral value in USDT
      */
     function computeCollateralValue(address _depositors_addr) internal returns (uint value) {
+        /* todo: implementation */
+        return 0;
+    }
+
+    /**
+     * @notice compute borrowing power
+     * @param _depositors_addr - address of the depositor
+     * @return uint - borrowing power , 4 digits
+     */
+    function computeBorrowingPower(address _depositors_addr) internal returns (uint value) {
         /* todo: implementation */
         return 0;
     }
