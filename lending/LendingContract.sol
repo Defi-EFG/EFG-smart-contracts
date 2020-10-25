@@ -446,9 +446,11 @@ contract LendingContract {
             EFGBalance[msg.sender] -= (_amount - amountLeft);
             p.remainingEFG += (_amount - amountLeft);
 	    /* release all collateral */
-            balance[msg.sender][d.assetSymbol] += p.collateral[msg.sender][d.assetSymbol];
-	    p.collateral[msg.sender][d.assetSymbol] = 0;
-	    d.assetSymbol = "";
+	    for (uint i=0; i < d.assetSymbol.length; i++ ) {
+	      balance[msg.sender][d.assetSymbol[i]] += p.collateral[msg.sender][d.assetSymbol[i]];
+	      p.collateral[msg.sender][d.assetSymbol[i]] = 0;
+	      d.assetSymbol[i] = "";
+	    }
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
             usersPool[msg.sender] = address(0x0);
             /* reset loan data */
@@ -689,7 +691,7 @@ contract LendingContract {
         )
     {
         Loan memory l = debt[_debtor_addr];
-        return (l.assetSymbol, l.EFGamount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
+        return (l.EFGamount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
     }
 
     /**
@@ -723,7 +725,7 @@ contract LendingContract {
 
     /**
      * @notice returns the pool address
-     * @param _debtors_addr - debtor's address
+     * @param _depositors_addr - debtor's address
      * @return uint256 - pools address or the zero address if no collateral exists
      */
     function getUserPool(address _depositors_addr) external view returns(address) {
@@ -751,7 +753,7 @@ contract LendingContract {
     function unlockCollateral(bytes8 _symbol) internal {
         /* check if loan exists */
         Loan storage l =  debt[msg.sender];
-        if (l.assetSymbol != _symbol) {
+        if (l.poolAddr == address(0x0)) {
             return;
         }
 
