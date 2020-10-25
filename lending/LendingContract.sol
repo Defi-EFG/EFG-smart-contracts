@@ -317,7 +317,7 @@ contract LendingContract {
         /* check if the loan is unlocked */
         Loan memory l = debt[msg.sender];
         require(!l.locked);
-        
+
         /* send the tokens , it will fail if not appoved before */
         result = token.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
@@ -334,20 +334,19 @@ contract LendingContract {
     }
 
     /**
-     * @notice use _symbol asset as collateral
-     * @param _pool_addr address of the pool
-     * @param _amount of asset as collateral
+     * @notice boorow EFG
+     * @param _amount to borrow in USDT
      * @return uint256 - total borrowed EFG
      */
-    function borrow(
-        address _pool_addr,
-        uint256 _amount
-    ) public poolExists(_pool_addr) returns(uint256 borrowedEFG) {
+    function borrow(uint256 _amount) public returns(uint256 borrowedEFG) {
+        address poolAddr = usersPool[msg.sender];
+	/* check if pool exists and there is enough collateral */
+	require(!(addressSearch(pool, poolAddr) == -1 ));
+	require(enoughCollateral(_amount));
 
-        require(enoughCollateral(_amount, _pool_addr));
-        Pool storage p = poolsData[_pool_addr];
+        Pool storage p = poolsData[poolAddr];
         Loan storage l = debt[msg.sender];
-        bool loanIsNew = (l.locked);
+        bool loanIsNew = !(l.locked);
 
         uint256 EFGAmount = (_amount *
             computeBorrowingPower(msg.sender) *
@@ -357,10 +356,10 @@ contract LendingContract {
         /* save loan info */
         if (loanIsNew) {
             l.xrate = USDTRates["EFG"];
-            //l.collateralRate = collateralRates[_symbol]; ???
+            l.collateralRate = computeBorrowingPower(msg.sender);
             l.interestRate = interestRateEFG;
             l.interest = 0;
-            l.poolAddr = _pool_addr;
+            l.poolAddr = poolAddr;
         } else {
             l.interest +=
                 (l.EFGamount *
@@ -370,34 +369,29 @@ contract LendingContract {
         l.timestamp = block.timestamp;
         l.EFGamount += EFGAmount;
         p.remainingEFG -= EFGAmount;
+	EFGBalance[msg.sender] += EFGAmount;
 
-        emit BorrowEvent(loanIsNew, _pool_addr, msg.sender, EFGAmount);
+        emit BorrowEvent(loanIsNew, poolAddr, msg.sender, EFGAmount);
         return EFGAmount;
     }
 
     /**
      * @notice used by borrow() function to avoid stack too deep problem
-     * @param _amount - amount of asset
-     * @param _pool_addr - pool where the loan belongs
+     * @param _amount - amount in USDT
      * @return bool - return true if everything is ok, else false
      */
-    function enoughCollateral(
-        uint256 _amount,
-        address _pool_addr
-    ) internal view returns(bool) {
+    function enoughCollateral(uint256 _amount) internal view returns(bool) {
         if (_amount <= 0) {
             return false;
         }
-        
-        Pool storage p = poolsData[_pool_addr];
-        if (_amount > p.collateral[msg.sender][_symbol]) {
+
+	if (usersPool[msg.sender] == address(0x0)) {
             return false;
         }
 	uint256 currentDebt;
         (currentDebt, ) = getDebt(msg.sender);
-        uint256 borrowPower = ((p.collateral[msg.sender][_symbol] - _amount) *
-            collateralRates[_symbol]) / 1e4;
-        return ((borrowPower * computeEFGRate(USDTRates[_symbol], USDTRates["EFG"])) / 1e6 > currentDebt);
+	uint totalDebt = (currentDebt * computeEFGRate(USDTRates["EFG"], 1e6)) / 1e6; /* EFG/USDT */
+	return (computeCollateralValue(msg.sender) > totalDebt);
     }
 
     /**
@@ -406,7 +400,7 @@ contract LendingContract {
      * @return uint - the total debt in EFG
      * @return address - the pool where the loan exists
      */
-    function getDebt(address _debtor) public view returns(uint256 totalDebt, address pollAddress) {
+    function getDebt(address _debtor) public view returns(uint256 totalDebt, address poolAddress) {
         Loan memory d = debt[_debtor];
         totalDebt = d.EFGamount + d.interest;
         uint256 lastInterest = ((d.EFGamount *
@@ -773,7 +767,7 @@ contract LendingContract {
     /**
      * @notice compute total collateral value in USDT
      * @param _depositors_addr - address of the depositor
-     * @return uint - total collateral value in USDT
+     * @return uint - total collateral value in USDT , 8 digits
      */
     function computeCollateralValue(address _depositors_addr) internal returns (uint value) {
         /* todo: implementation */
