@@ -127,9 +127,6 @@ contract LendingContract {
         (totalDebt,) = getDebt(_debtors_addr);
         /* compute current collateral value for this asset*/
         Pool storage p = poolsData[poolAddress];
-        /*
-        uint256 collateralValue = (p.collateral[_debtors_addr][l.assetSymbol] *
-            computeEFGRate(USDTRates[l.assetSymbol], USDTRates["EFG"])) / 1e6; /* rate has 6 decimal places */
         uint256 collateralValue = computeCollateralValue(_debtors_addr);
         require(totalDebt > collateralValue * l.collateralRate / 1e4);
         _;
@@ -774,8 +771,15 @@ contract LendingContract {
      * @return uint - total collateral value in USDT , 8 digits
      */
     function computeCollateralValue(address _depositors_addr) internal returns (uint value) {
-        /* todo: implementation */
-        return 0;
+        Loan storage l = debt[_depositors_addr];
+
+	uint256 totalValue = 0;
+        for(uint256 i = 0 ; i < l.assetSymbol.length; ++i ) {
+            totalValue += (l.deposits[l.assetSymbol[i]]
+			   * computeEFGRate(USDTRates[l.assetSymbol[i]], USDTRates["EFG"])) / 1e6 ;
+        }
+
+       return totalValue;
     }
 
     /**

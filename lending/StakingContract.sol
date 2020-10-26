@@ -17,7 +17,7 @@ contract StakingContract {
     ECRC20 GPT;
     ECRC20 EFG;
 
-    function StakingContract (address _EFG_addr,address  _GPT_addr) {
+    function StakingContract (address _EFG_addr,address  _GPT_addr) public {
         mintingRate = 1286; /* mining rate per second in e-16 */
         GPT = ECRC20(_GPT_addr); /* smart contract address of GPT , 4 decimal places */
         EFG = ECRC20(_EFG_addr); /* smart contract address of EFG , 8 decimal places*/
