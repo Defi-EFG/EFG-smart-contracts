@@ -283,16 +283,24 @@ contract LendingContract {
         /* check if loan is locked */
         Loan storage l = debt[msg.sender];
         require(!l.locked);
+	bool isNew = (l.poolAddr == address(0x0));
+	/* forbid the deposit if an active loan already exists in another pool */
+	require(isNew || (l.poolAddr == _pool_addr));
 
-        usersPool[msg.sender] = _pool_addr;
-        Pool storage p = poolsData[_pool_addr];
+	Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender]["ECOC"] += msg.value;
-
-        /* Initialize the Loan */
-        l.assetSymbol.push("ECOC");
-        l.deposits["ECOC"] += msg.value;
-        l.poolAddr = _pool_addr;
-
+	
+	if (isNew) {
+	    usersPool[msg.sender] = _pool_addr;
+	    
+	    /* Initialize the Loan */
+	    l.assetSymbol.push("ECOC");
+	    l.deposits["ECOC"] += msg.value;
+	    l.poolAddr = _pool_addr;
+	    p.members.push(msg.sender);
+	}
+	
+        
         emit DepositECOCEvent(msg.sender, msg.value);
         return true;
     }
@@ -402,7 +410,6 @@ contract LendingContract {
     function repay(uint256 _amount) external returns (bool result) {
         require(_amount > 0);
 	Loan storage d = debt[msg.sender];
-        require(d.EFGamount !=0 );
 
 	/* send EFG first , it will fail if not appoved before */
         result = EFG.transferFrom(msg.sender, address(this), _amount);
@@ -411,7 +418,8 @@ contract LendingContract {
             return false;
         }
 	EFGBalance[msg.sender] += _amount;
-	
+
+	require(d.EFGamount !=0 );
         Pool storage p = poolsData[d.poolAddr];
 
         if (_amount <= d.interest) {
@@ -545,6 +553,7 @@ contract LendingContract {
     
         emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
+	usersPool[msg.sender] = address(0x0);
         /* reset the loan data */
         l.EFGamount = 0;
         l.timestamp = 0;
@@ -613,7 +622,7 @@ contract LendingContract {
     /**
      * @notice withdraw GPT , owner only, can withdraw to any address
      * @param _beneficiar - destination address
-     * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw total balance
+     * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw the total
      * @return bool - true on success, else false
      */
     function withdrawGPT(address _beneficiar, uint256 _amount) external ownerOnly() returns(bool result){
