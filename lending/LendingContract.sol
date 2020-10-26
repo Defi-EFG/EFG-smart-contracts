@@ -374,7 +374,7 @@ contract LendingContract {
 
 	/* also withdraw that amount */
 	withdrawEFG(_amount);
-	
+
         return _amount;
     }
     
@@ -401,10 +401,17 @@ contract LendingContract {
      */
     function repay(uint256 _amount) external returns (bool result) {
         require(_amount > 0);
-        require(_amount <= EFGBalance[msg.sender]);
-
-        Loan storage d = debt[msg.sender];
+	Loan storage d = debt[msg.sender];
         require(d.EFGamount !=0 );
+
+	/* send EFG first , it will fail if not appoved before */
+        result = EFG.transferFrom(msg.sender, address(this), _amount);
+        if (!result) {
+            emit DepositAssetEvent(false, "EFG", msg.sender, _amount);
+            return false;
+        }
+	EFGBalance[msg.sender] += _amount;
+	
         Pool storage p = poolsData[d.poolAddr];
 
         if (_amount <= d.interest) {
@@ -433,11 +440,11 @@ contract LendingContract {
             p.remainingEFG += (_amount - amountLeft);
 	    /* release all collateral */
 	    for (uint i=0; i < d.assetSymbol.length; i++ ) {
-	      balance[msg.sender][d.assetSymbol[i]] += p.collateral[msg.sender][d.assetSymbol[i]];
-	      p.collateral[msg.sender][d.assetSymbol[i]] = 0;
-	      d.assetSymbol[i] = "";
+		balance[msg.sender][d.assetSymbol[i]] += d.deposits[d.assetSymbol[i]];
+		p.collateral[msg.sender][d.assetSymbol[i]] = 0;
 	    }
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
+	    
             usersPool[msg.sender] = address(0x0);
             /* reset loan data */
             d.timestamp = 0;
@@ -773,7 +780,7 @@ contract LendingContract {
     }
 
     /**
-     * @notice unlock collateral
+     * @notice move collateral out of the pool
      * @param _symbol - symbol asset
      */
     function unlockCollateral(bytes8 _symbol) internal {
@@ -783,8 +790,8 @@ contract LendingContract {
             return;
         }
 
-        /* if locked amount never used for borrowing unlock the asset (move it outside of the pool) */
-        if (l.EFGamount != 0) {
+        /* check if collateral is locked */
+        if (l.locked) {
             return;
         }
 
