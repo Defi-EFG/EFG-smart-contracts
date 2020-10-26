@@ -46,7 +46,7 @@ contract LendingContract {
         uint256 EFGamount; /* amount in EFG , 8 digits */
         uint256 timestamp; /* timestamp of last update (creation or partial repay) */
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
-        uint256 collateralRate; /* Initial borrow power(collateral rate) , 4 digits , unused for now */
+        uint256[] collateralRate; /* Initial collateral rate of assets , 4 digits */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
         uint256 lastGracePeriod; /* timestamp of last trigger of grace period*/
@@ -119,22 +119,17 @@ contract LendingContract {
      * @param  _debtors_addr - address of teh debtor
      * @return an bool , if true then the loan is liquidable
      */
-    function canSeize(address _debtors_addr) internal returns (bool seizable) {
+    function canSeize(address _debtors_addr) internal view returns (bool seizable) {
         /* check if a loan exists */
         Loan storage l =  debt[_debtors_addr];
         require(l.EFGamount != 0);
-        /* check if the caller is the pool leader*/
-        address poolAddress = l.poolAddr;
-        require(msg.sender == poolAddress) ;
         /* check if grace period is still running */
-        require( (block.timestamp - l.lastGracePeriod) > secsIn7Hours );
+        require((block.timestamp - l.lastGracePeriod) > secsIn7Hours);
         /* get total debt*/
         uint256 totalDebt;
         (totalDebt,) = getDebt(_debtors_addr);
         /* compute current collateral value for this asset*/
-        Pool storage p = poolsData[poolAddress];
-        uint256 collateralValue = computeCollateralValue(_debtors_addr);
-	if (totalDebt > collateralValue * l.collateralRate / 1e4) {
+	if (totalDebt > computeCollateralValue(_debtors_addr) ) {
 	    return true;
 	}
 	return false;
@@ -343,24 +338,23 @@ contract LendingContract {
      */
     function borrow(uint256 _amount) public returns(uint256 borrowedEFG) {
         address poolAddr = usersPool[msg.sender];
-	/* check if pool exists and there is enough collateral */
+	/* necessary checks */
 	require(!(addressSearch(pool, poolAddr) == -1 ));
-	require(enoughCollateral(_amount));
+	require(_amount <= computeBorrowingPower(msg.sender));
+	require(_amount <= p.remainingEFG);
 
         Pool storage p = poolsData[poolAddr];
         Loan storage l = debt[msg.sender];
         bool loanIsNew = !(l.locked);
-
-        require(_amount <= p.remainingEFG);
-	/* abort the tx if the user tries to borrow more EFG than he can */
-	require(_amount <= computeBorrowingPower(msg.sender));
-
-        /* save loan info */
+	
+        /* create or update loan info */
         if (loanIsNew) {
+	    l.locked = true;
             l.xrate = USDTRates["EFG"];
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
+	    p.members.push(msg.sender);
         } else {
             l.interest +=
                 (l.EFGamount *
@@ -375,26 +369,7 @@ contract LendingContract {
         emit BorrowEvent(loanIsNew, poolAddr, msg.sender, _amount);
         return _amount;
     }
-
-    /**
-     * @notice used by borrow() function to avoid stack too deep problem
-     * @param _amount - amount in USDT
-     * @return bool - return true if everything is ok, else false
-     */
-    function enoughCollateral(uint256 _amount) internal view returns(bool) {
-        if (_amount <= 0) {
-            return false;
-        }
-
-	if (usersPool[msg.sender] == address(0x0)) {
-            return false;
-        }
-	uint256 currentDebt;
-        (currentDebt, ) = getDebt(msg.sender);
-	uint totalDebt = (currentDebt * computeEFGRate(USDTRates["EFG"], 1e6)) / 1e6; /* EFG/USDT */
-	return (computeCollateralValue(msg.sender) > totalDebt);
-    }
-
+    
     /**
      * @notice get EFG amount of debt
      * @param _debtor - debtor's address
@@ -460,7 +435,8 @@ contract LendingContract {
             d.timestamp = 0;
             d.interestRate = 0;
             d.xrate = 0;
-            d.collateralRate = 0;
+	    delete d.assetSymbol;
+            delete d.collateralRate;
             d.interest = 0;
             d.lastGracePeriod = 0;
             d.remainingGPT = 0;
@@ -540,15 +516,18 @@ contract LendingContract {
 	require(canSeize(_debtors_addr));
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
+	/* check if the caller is the pool leader*/
+        require(msg.sender == l.poolAddr) ;
         Pool storage p = poolsData[l.poolAddr];
-
+	
 	for (uint i=0; i < l.assetSymbol.length; i++ ) {
-	  balance[l.poolAddr][l.assetSymbol[i]] += l.collateralRate* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4
-	    + ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2 ; /* 50% profit*/
-	  balance[owner][l.assetSymbol[i]] +=  ((1e4-l.collateralRate)* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
+	  balance[l.poolAddr][l.assetSymbol[i]] += l.collateralRate[i]* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4
+	    + ((1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2 ; /* 50% profit*/
+	  balance[owner][l.assetSymbol[i]] +=  ((1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
 	  /* also, remove the asssets from the pool */
 	  p.collateral[_debtors_addr][l.assetSymbol[i]] = 0;
 	}
+    
         emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
         /* reset the loan data */
@@ -559,7 +538,8 @@ contract LendingContract {
         l.timestamp = 0;
         l.interestRate = 0;
         l.xrate = 0;
-        l.collateralRate = 0;
+	delete l.assetSymbol;
+        delete l.collateralRate;
         l.interest = 0;
         l.lastGracePeriod = 0;
         l.remainingGPT = 0;
@@ -687,10 +667,10 @@ contract LendingContract {
      * @return address[] - array of all members in the pool
      */
     function listPoolUsers(address _pool_addr) external view poolExists(_pool_addr) returns(address[] members) {
-	address[] storage allMembers;
+	address[] memory allMembers;
 	Pool storage p = poolsData[_pool_addr];
 	for (uint i =0; i < p.members.length  ; i++) {
-	    allMembers.push(p.members[i]);
+	    allMembers[i] = p.members[i];
 	}
 	return allMembers;
     }
@@ -701,11 +681,11 @@ contract LendingContract {
      * @return address[] - array of all members in the pooladdresses of debtors that fallen short
      */
     function listLiquidable(address _pool_addr) external view poolExists(_pool_addr) returns(address[] allLiquidable){
-	address[] storage fallenShort;
-	Pool storage p = poolsData[_pool_addr];
+	address[] memory fallenShort;
+	Pool memory p = poolsData[_pool_addr];
 	for (uint i =0; i < p.members.length  ; i++) {
 	    if (canSeize(p.members[i])) {
-		fallenShort.push(p.members[i]);
+		fallenShort[i] = p.members[i];
 	    }
 	}
 	return fallenShort;
@@ -814,13 +794,13 @@ contract LendingContract {
      * @param _depositors_addr - address of the depositor
      * @return uint - total collateral value in USDT , 8 digits
      */
-    function computeCollateralValue(address _depositors_addr) internal returns (uint value) {
+    function computeCollateralValue(address _depositors_addr) internal view returns (uint value) {
         Loan storage l = debt[_depositors_addr];
 
 	uint256 totalValue = 0;
         for(uint256 i = 0 ; i < l.assetSymbol.length; ++i ) {
-            totalValue += (l.deposits[l.assetSymbol[i]]
-			   * computeEFGRate(USDTRates[l.assetSymbol[i]], USDTRates["EFG"])) / 1e6 ;
+            totalValue += (l.deposits[l.assetSymbol[i]] * l.collateralRate[i]
+			   * computeEFGRate(USDTRates[l.assetSymbol[i]], USDTRates["EFG"])) / 1e10 ;
         }
        
        return totalValue;
@@ -829,9 +809,9 @@ contract LendingContract {
     /**
      * @notice compute borrowing power
      * @param _depositors_addr - address of the depositor
-     * @return uint - borrowing power in EFG , 8 digits
+     * @return uint - borrowing power (left to lend) in EFG , 8 digits
      */
-    function computeBorrowingPower(address _depositors_addr) internal returns (uint lendableEFG) {
+    function computeBorrowingPower(address _depositors_addr) internal view returns (uint lendableEFG) {
 	Loan storage l = debt[_depositors_addr];
 	require(l.locked);
 
