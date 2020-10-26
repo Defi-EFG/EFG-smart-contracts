@@ -116,15 +116,19 @@ contract LendingContract {
 
     /**
      * @notice check if the loan can be liquidated
-     * @param  _debtors_addr - address of teh debtor
+     * @param  _debtors_addr - address of the debtor
      * @return an bool , if true then the loan is liquidable
      */
     function canSeize(address _debtors_addr) internal view returns (bool seizable) {
         /* check if a loan exists */
         Loan storage l =  debt[_debtors_addr];
-        require(l.EFGamount != 0);
+	if (l.EFGamount == 0) {
+	    return false;
+	}
         /* check if grace period is still running */
-        require((block.timestamp - l.lastGracePeriod) > secsIn7Hours);
+	if((block.timestamp - l.lastGracePeriod) <= secsIn7Hours) {
+	    return false;
+	}
         /* get total debt*/
         uint256 totalDebt;
         (totalDebt,) = getDebt(_debtors_addr);
@@ -792,7 +796,7 @@ contract LendingContract {
     /**
      * @notice compute total collateral value in USDT
      * @param _depositors_addr - address of the depositor
-     * @return uint - total collateral value in USDT , 8 digits
+     * @return uint - total collateral value in EFG , 8 digits
      */
     function computeCollateralValue(address _depositors_addr) internal view returns (uint value) {
         Loan storage l = debt[_depositors_addr];
