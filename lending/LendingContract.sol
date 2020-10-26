@@ -371,6 +371,10 @@ contract LendingContract {
 	EFGBalance[msg.sender] += _amount;
 
         emit BorrowEvent(loanIsNew, poolAddr, msg.sender, _amount);
+
+	/* also withdraw that amount */
+	withdrawEFG(_amount);
+	
         return _amount;
     }
     
@@ -476,7 +480,7 @@ contract LendingContract {
      * @param _amount - EFG amount
      * @return bool
      */
-    function withdrawEFG(uint256 _amount) external returns(bool result) {
+    function withdrawEFG(uint256 _amount) public returns(bool result) {
         require(_amount > 0);
         require(EFGBalance[msg.sender] >= _amount);
         EFGBalance[msg.sender] -= _amount;
@@ -535,9 +539,6 @@ contract LendingContract {
         emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
         /* reset the loan data */
-	for (i=0; i < l.assetSymbol.length; i++ ) {
-	  l.assetSymbol[i] = "";
-	}
         l.EFGamount = 0;
         l.timestamp = 0;
         l.interestRate = 0;
