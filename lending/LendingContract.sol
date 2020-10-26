@@ -637,6 +637,14 @@ contract LendingContract {
     }
 
     /**
+     * @notice display GPT balance
+     * @return uint256 - available GPT in smart contract
+     */
+    function availableGPT() external view returns (uint256 availableGPT) {
+	return GPT.balanceOf(address(this));
+    }	
+
+    /**
      * @notice display EFG balance
      * @param _address beneficiar's address
      * @return uint256
@@ -778,7 +786,7 @@ contract LendingContract {
             totalValue += (l.deposits[l.assetSymbol[i]]
 			   * computeEFGRate(USDTRates[l.assetSymbol[i]], USDTRates["EFG"])) / 1e6 ;
         }
-
+       
        return totalValue;
     }
 
