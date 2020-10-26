@@ -13,7 +13,7 @@ contract ECRC20 {
 
 contract LendingContract {
     address owner;
-    address[] pool;
+    address[] pool;  /* pool leader addresses */
     ECRC20 EFG;
     ECRC20 GPT;
     ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
@@ -33,6 +33,7 @@ contract LendingContract {
 
     struct Pool {
         bytes32 name;
+	address[] members;
         mapping(address => mapping(bytes8 => uint256)) collateral; /* 8 decimal places */
         uint256 remainingEFG; /* 8 decimal places */
     }
@@ -640,7 +641,7 @@ contract LendingContract {
      * @notice display GPT balance
      * @return uint256 - available GPT in smart contract
      */
-    function availableGPT() external view returns (uint256 availableGPT) {
+    function availableGPT() external view returns (uint256 available_GPT) {
 	return GPT.balanceOf(address(this));
     }	
 
@@ -655,7 +656,7 @@ contract LendingContract {
 
     /**
      * @notice display asset balance
-      @param _symbol asset
+     * @param _symbol asset
      * @param _address beneficiar's address
      * @return uint256
      */
@@ -673,6 +674,20 @@ contract LendingContract {
      */
     function getAllPools() public view returns (address[]) {
         return pool;
+    }
+
+    /**
+     * @notice list all active pool members
+     * @param _pool_addr - pool address
+     * @return address[] - array of all members in the pool
+     */
+    function listPoolUsers(address _pool_addr) external view poolExists(_pool_addr) returns(address[] members) {
+	address[] allMembers;
+	Pool storage p = poolsData[_pool_addr];
+	for (uint i =0; i < p.members.length  ; i++) {
+	    allMembers.push(p.members[i]);
+	}
+	return allMembers;
     }
 
     /**
