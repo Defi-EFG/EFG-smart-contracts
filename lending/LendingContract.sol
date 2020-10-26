@@ -46,7 +46,7 @@ contract LendingContract {
         uint256 EFGamount; /* amount in EFG , 8 digits */
         uint256 timestamp; /* timestamp of last update (creation or partial repay) */
         uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
-        uint256 collateralRate; /* Initial borrow power(collateral rate) , 4 digits */
+        uint256 collateralRate; /* Initial borrow power(collateral rate) , 4 digits , unused for now */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
         uint256 lastGracePeriod; /* timestamp of last trigger of grace period*/
@@ -338,7 +338,7 @@ contract LendingContract {
 
     /**
      * @notice boorow EFG
-     * @param _amount to borrow in USDT
+     * @param _amount - amount to borrow in EFG
      * @return uint256 - total borrowed EFG
      */
     function borrow(uint256 _amount) public returns(uint256 borrowedEFG) {
@@ -351,15 +351,13 @@ contract LendingContract {
         Loan storage l = debt[msg.sender];
         bool loanIsNew = !(l.locked);
 
-        uint256 EFGAmount = (_amount *
-            computeBorrowingPower(msg.sender) *
-            USDTRates["EFG"]) / 1e10;
-        require(EFGAmount <= p.remainingEFG);
+        require(_amount <= p.remainingEFG);
+	/* abort the tx if the user tries to borrow more EFG than he can */
+	require(_amount <= computeBorrowingPower(msg.sender));
 
         /* save loan info */
         if (loanIsNew) {
             l.xrate = USDTRates["EFG"];
-            l.collateralRate = computeBorrowingPower(msg.sender);
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
@@ -370,12 +368,12 @@ contract LendingContract {
                 (secsInYear * 1e4);
         }
         l.timestamp = block.timestamp;
-        l.EFGamount += EFGAmount;
-        p.remainingEFG -= EFGAmount;
-	EFGBalance[msg.sender] += EFGAmount;
+        l.EFGamount += _amount;
+        p.remainingEFG -= _amount;
+	EFGBalance[msg.sender] += _amount;
 
-        emit BorrowEvent(loanIsNew, poolAddr, msg.sender, EFGAmount);
-        return EFGAmount;
+        emit BorrowEvent(loanIsNew, poolAddr, msg.sender, _amount);
+        return _amount;
     }
 
     /**
@@ -831,11 +829,26 @@ contract LendingContract {
     /**
      * @notice compute borrowing power
      * @param _depositors_addr - address of the depositor
-     * @return uint - borrowing power , 4 digits
+     * @return uint - borrowing power in EFG , 8 digits
      */
-    function computeBorrowingPower(address _depositors_addr) internal returns (uint value) {
-        /* todo: implementation */
-        return 0;
+    function computeBorrowingPower(address _depositors_addr) internal returns (uint lendableEFG) {
+	Loan storage l = debt[_depositors_addr];
+	require(l.locked);
+
+	/* get the total debt */
+	uint256 totalDebt;
+	(totalDebt,) = getDebt(_depositors_addr);
+	/* compute the maximum borrowing power in EFG */
+	uint256 maxBorrowing;
+	for (uint i = 0; i < l.assetSymbol.length; i++) {
+	    maxBorrowing += (l.deposits[l.assetSymbol[i]] * USDTRates[l.assetSymbol[i]]) / USDTRates["EFG"];
+	}
+
+	/* compute the difference*/
+	if (maxBorrowing <= totalDebt) {
+	    return 0;
+	}
+        return (maxBorrowing - totalDebt);
     }
 
     /**
