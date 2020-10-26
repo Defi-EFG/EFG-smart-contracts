@@ -114,7 +114,12 @@ contract LendingContract {
         _;
     }
 
-    modifier canSeize(address _debtors_addr) {
+    /**
+     * @notice check if the loan can be liquidated
+     * @param  _debtors_addr - address of teh debtor
+     * @return an bool , if true then the loan is liquidable
+     */
+    function canSeize(address _debtors_addr) internal returns (bool seizable) {
         /* check if a loan exists */
         Loan storage l =  debt[_debtors_addr];
         require(l.EFGamount != 0);
@@ -129,8 +134,10 @@ contract LendingContract {
         /* compute current collateral value for this asset*/
         Pool storage p = poolsData[poolAddress];
         uint256 collateralValue = computeCollateralValue(_debtors_addr);
-        require(totalDebt > collateralValue * l.collateralRate / 1e4);
-        _;
+	if (totalDebt > collateralValue * l.collateralRate / 1e4) {
+	    return true;
+	}
+	return false;
     }
 
     /**
@@ -530,9 +537,9 @@ contract LendingContract {
      */
     function marginCall(address _debtors_addr)
         external
-        canSeize(_debtors_addr)
         returns(bool result)
     {
+	require(canSeize(_debtors_addr));
         /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
         Pool storage p = poolsData[l.poolAddr];
@@ -672,7 +679,7 @@ contract LendingContract {
      * @notice get all founder's pools
      * @return address[] - array of all pool addresses
      */
-    function getAllPools() public view returns (address[]) {
+    function getAllPools() public view returns (address[] allPools) {
         return pool;
     }
 
@@ -682,12 +689,28 @@ contract LendingContract {
      * @return address[] - array of all members in the pool
      */
     function listPoolUsers(address _pool_addr) external view poolExists(_pool_addr) returns(address[] members) {
-	address[] allMembers;
+	address[] storage allMembers;
 	Pool storage p = poolsData[_pool_addr];
 	for (uint i =0; i < p.members.length  ; i++) {
 	    allMembers.push(p.members[i]);
 	}
 	return allMembers;
+    }
+
+    /**
+     * @notice list all liquidable loans for a pool
+     * @param _pool_addr - pool address
+     * @return address[] - array of all members in the pooladdresses of debtors that fallen short
+     */
+    function listLiquidable(address _pool_addr) external view poolExists(_pool_addr) returns(address[] allLiquidable){
+	address[] storage fallenShort;
+	Pool storage p = poolsData[_pool_addr];
+	for (uint i =0; i < p.members.length  ; i++) {
+	    if (canSeize(p.members[i])) {
+		fallenShort.push(p.members[i]);
+	    }
+	}
+	return fallenShort;
     }
 
     /**
