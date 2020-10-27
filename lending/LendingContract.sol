@@ -295,7 +295,7 @@ contract LendingContract {
 	    p.members.push(msg.sender);
 	    /* Initialize the Loan */
 	    l.assetSymbol.push("ECOC");
-	    l.poolAddr = _pool_addr; 
+	    l.poolAddr = _pool_addr;
 	}
 	l.deposits["ECOC"] += msg.value;
 
@@ -330,7 +330,7 @@ contract LendingContract {
 	require(isNew || (l.poolAddr == _pool_addr));
 
 	ECRC20 token = ECRC20(assetAddress[uint(index)]);
-	
+
         /* send the tokens , it will fail if not appoved before */
         result = token.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
@@ -846,7 +846,8 @@ contract LendingContract {
 	/* compute the maximum borrowing power in EFG */
 	uint256 maxBorrowing;
 	for (uint i = 0; i < l.assetSymbol.length; i++) {
-	    maxBorrowing += (l.deposits[l.assetSymbol[i]] * USDTRates[l.assetSymbol[i]]) / USDTRates["EFG"];
+	    maxBorrowing += (l.deposits[l.assetSymbol[i]] * l.collateralRate[i]
+			     * USDTRates[l.assetSymbol[i]]) / (USDTRates["EFG"] * 1e4);
 	}
 
 	/* compute the difference*/
