@@ -725,6 +725,9 @@ contract LendingContract {
      * @return uint256 - last timestamp of loan creation or update
      * @return uint256 - last interast rate in EFG
      * @return uint256 - total interest
+     * @return uint256 - initial rate of EFG/USDT
+     * @return uint256 - timestamp of ending grace period
+     * @return uint256 - remainingGPT
      * @return address - founder's address
      */
     function getLoanInfo(address _debtor_addr)
@@ -735,11 +738,15 @@ contract LendingContract {
             uint256 timestamp,
             uint256 interestRate,
             uint256 interest,
+	    uint256 EFGInitialRate,
+	    uint256 lastGracePeriod,
+	    uint256 remainingGPT,
             address poolAddr
         )
     {
         Loan memory l = debt[_debtor_addr];
-        return (l.EFGamount, l.timestamp, l.interestRate, l.interest, l.poolAddr);
+        return (l.EFGamount, l.timestamp, l.interestRate, l.interest,
+		l.xrate, l.lastGracePeriod, l.remainingGPT, l.poolAddr);
     }
 
     /**
