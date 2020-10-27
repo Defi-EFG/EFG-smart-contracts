@@ -369,17 +369,22 @@ contract LendingContract {
 
         Pool storage p = poolsData[poolAddr];
         Loan storage l = debt[msg.sender];
-        bool loanIsNew = !(l.locked);
+        bool firstBorrow = !(l.locked);
 	
         /* create or update loan info */
-        if (loanIsNew) {
+        if (firstBorrow) {
 	    l.locked = true;
             l.xrate = USDTRates["EFG"];
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
+	    /* save the collateral rates */
+	    for (uint i = 0; i < l.assetSymbol.length; i++) {
+		l.collateralRate[i] = collateralRates[l.assetSymbol[i]];
+	    }
 	    p.members.push(msg.sender);
         } else {
+	    /* update interest*/
             l.interest +=
                 (l.EFGamount *
                     ((block.timestamp - l.timestamp) * l.interestRate)) /
