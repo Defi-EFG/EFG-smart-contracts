@@ -119,7 +119,7 @@ contract LendingContract {
      * @param  _debtors_addr - address of the debtor
      * @return an bool , if true then the loan is liquidable
      */
-    function canSeize(address _debtors_addr) internal view returns (bool seizable) {
+    function canSeize(address _debtors_addr) public view returns (bool seizable) {
         /* check if a loan exists */
         Loan storage l =  debt[_debtors_addr];
 	if (l.EFGamount == 0) {
@@ -524,12 +524,11 @@ contract LendingContract {
     function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
         require(_amount > 0);
         int index = stringSearch(assetName, _symbol);
-        if (index == -1) {
+        if ((index == -1) || (balance[msg.sender][_symbol] < _amount)) {
             emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
         return false; 
         }
-
-        require(balance[msg.sender][_symbol] >= _amount);
+	
         balance[msg.sender][_symbol] -= _amount;
         /* send the tokens */
         asset[uint(index)].transfer(msg.sender, _amount);
@@ -547,10 +546,11 @@ contract LendingContract {
         returns(bool result)
     {
 	require(canSeize(_debtors_addr));
-        /* seize the collateral */
         Loan storage l = debt[_debtors_addr];
 	/* check if the caller is the pool leader*/
-        require(msg.sender == l.poolAddr) ;
+        require(msg.sender == l.poolAddr);
+
+	/* seize the collateral */
         Pool storage p = poolsData[l.poolAddr];
 	
 	for (uint i=0; i < l.assetSymbol.length; i++ ) {
@@ -569,10 +569,9 @@ contract LendingContract {
 	    delete p.members[uint(index)];
 	}
 	delete usersPool[_debtors_addr];
-
-	usersPool[_debtors_addr] = address(0x0);
         /* reset the loan data */
 	delete debt[_debtors_addr];
+	
         return true;
     }
 
@@ -583,7 +582,7 @@ contract LendingContract {
      * @return bool - true on success, else false
      */
     function extendGracePeriod(uint256 _gpt_amount) external returns(bool result) {
-        /* check if loan exists*/
+        /* check if debt exists*/
         Loan storage l = debt[msg.sender];
         if (l.EFGamount == 0) {
             emit ExtendGracePeriodEvent(false, msg.sender , 0);
@@ -619,8 +618,8 @@ contract LendingContract {
         }
 
         /* update loan data*/
-        l.lastGracePeriod = block.timestamp;
-        l.remainingGPT -= (totalDebt * periodRate / GPTRate) * 1e4; /* 1e6 * 1e-2*/
+        l.lastGracePeriod = block.timestamp + period;
+        l.remainingGPT -= (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2*/
         emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
 
        return true;
