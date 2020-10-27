@@ -292,14 +292,13 @@ contract LendingContract {
 	
 	if (isNew) {
 	    usersPool[msg.sender] = _pool_addr;
-	    
+	    p.members.push(msg.sender);
 	    /* Initialize the Loan */
 	    l.assetSymbol.push("ECOC");
-	    l.deposits["ECOC"] += msg.value;
-	    l.poolAddr = _pool_addr;
-	    p.members.push(msg.sender);
+	    l.poolAddr = _pool_addr; 
 	}
-	
+	l.deposits["ECOC"] += msg.value;
+
         
         emit DepositECOCEvent(msg.sender, msg.value);
         return true;
@@ -323,22 +322,35 @@ contract LendingContract {
         if ( index ==-1) {
                 return false;
         }
-        ECRC20 token = ECRC20(assetAddress[uint(index)]);
         /* check if the loan is unlocked */
         Loan storage l = debt[msg.sender];
         require(!l.locked);
+	bool isNew = (l.poolAddr == address(0x0));
+	/* forbid the deposit if an active loan already exists in another pool */
+	require(isNew || (l.poolAddr == _pool_addr));
 
+	ECRC20 token = ECRC20(assetAddress[uint(index)]);
+	
         /* send the tokens , it will fail if not appoved before */
         result = token.transferFrom(msg.sender, address(this), _amount);
         if (!result) {
             emit DepositAssetEvent(false, _symbol, msg.sender, _amount);
             return false;
-        }        
+        }
 
         usersPool[msg.sender] = _pool_addr;
         Pool storage p = poolsData[_pool_addr];
         p.collateral[msg.sender][_symbol] += _amount;
-        l.deposits[_symbol] = _amount; 
+
+	if (isNew) {
+	    usersPool[msg.sender] = _pool_addr;
+	    p.members.push(msg.sender);
+	    /* Initialize the Loan */
+	    l.assetSymbol.push(_symbol);
+	    l.poolAddr = _pool_addr; 
+	}
+	l.deposits[_symbol] += _amount;
+	
         emit DepositAssetEvent(true, _symbol, msg.sender, _amount);
         return true;
     }
@@ -443,7 +455,6 @@ contract LendingContract {
         } else {
             /* loan repayed in full, release the collateral */
             amountLeft -= d.EFGamount;
-            d.EFGamount = 0;
             EFGBalance[msg.sender] -= (_amount - amountLeft);
             p.remainingEFG += (_amount - amountLeft);
 	    /* release all collateral */
@@ -452,19 +463,15 @@ contract LendingContract {
 		p.collateral[msg.sender][d.assetSymbol[i]] = 0;
 	    }
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
-	    
-            usersPool[msg.sender] = address(0x0);
-            /* reset loan data */
-            d.timestamp = 0;
-            d.interestRate = 0;
-            d.xrate = 0;
-	    delete d.assetSymbol;
-            delete d.collateralRate;
-            d.interest = 0;
-            d.lastGracePeriod = 0;
-            d.remainingGPT = 0;
-            d.poolAddr = address(0x0);
 
+	    int index;
+	    index = addressSearch(p.members, msg.sender);
+	    if (index !=-1 ) { /* reduntant check, element must exist anyway */
+		delete p.members[uint(index)];
+	    }
+	    delete usersPool[msg.sender];
+	    /* delete loan data */
+	    delete debt[msg.sender];
             return true;
         }
     }
@@ -553,19 +560,16 @@ contract LendingContract {
     
         emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
-	usersPool[msg.sender] = address(0x0);
-        /* reset the loan data */
-        l.EFGamount = 0;
-        l.timestamp = 0;
-        l.interestRate = 0;
-        l.xrate = 0;
-	delete l.assetSymbol;
-        delete l.collateralRate;
-        l.interest = 0;
-        l.lastGracePeriod = 0;
-        l.remainingGPT = 0;
-        l.poolAddr = address(0x0);
+	int index;
+	index = addressSearch(p.members, msg.sender);
+	if (index !=-1 ) { /* reduntant check, element must exist anyway */
+	    delete p.members[uint(index)];
+	}
+	delete usersPool[_debtors_addr];
 
+	usersPool[_debtors_addr] = address(0x0);
+        /* reset the loan data */
+	delete debt[_debtors_addr];
         return true;
     }
 
