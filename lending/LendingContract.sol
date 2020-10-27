@@ -395,7 +395,7 @@ contract LendingContract {
         p.remainingEFG -= _amount;
 	EFGBalance[msg.sender] += _amount;
 
-        emit BorrowEvent(loanIsNew, poolAddr, msg.sender, _amount);
+        emit BorrowEvent(firstBorrow, poolAddr, msg.sender, _amount);
 
 	/* also withdraw that amount */
 	withdrawEFG(_amount);
@@ -444,7 +444,7 @@ contract LendingContract {
             d.interest -= _amount;
             EFGBalance[msg.sender] -= _amount;
             p.remainingEFG += _amount;
-            emit RepayEvent(false , msg.sender, _amount);
+            emit RepayEvent(true , msg.sender, _amount);
             return true;
         }
 
@@ -455,7 +455,7 @@ contract LendingContract {
             d.EFGamount -= amountLeft;
             EFGBalance[msg.sender] -= _amount;
             p.remainingEFG += _amount;
-            emit RepayEvent(false , msg.sender, _amount);
+            emit RepayEvent(true , msg.sender, _amount);
             return true;
         } else {
             /* loan repayed in full, release the collateral */
@@ -493,7 +493,6 @@ contract LendingContract {
         returns(bool result)
     {
         require(_amount > 0);
-        unlockCollateral("ECOC");
         require(_amount <= balance[msg.sender]["ECOC"]);
         balance[msg.sender]["ECOC"] -= _amount;
         _beneficiars_addr.transfer(_amount);
@@ -530,7 +529,6 @@ contract LendingContract {
         return false; 
         }
 
-        unlockCollateral(_symbol);
         require(balance[msg.sender][_symbol] >= _amount);
         balance[msg.sender][_symbol] -= _amount;
         /* send the tokens */
@@ -795,28 +793,6 @@ contract LendingContract {
 
         assetToEFG = (_assetRate * 1e6 )/ _EFGRate; /* 6 decimal places */
         return assetToEFG;
-    }
-
-    /**
-     * @notice move collateral out of the pool
-     * @param _symbol - symbol asset
-     */
-    function unlockCollateral(bytes8 _symbol) internal {
-        /* check if loan exists */
-        Loan storage l =  debt[msg.sender];
-        if (l.poolAddr == address(0x0)) {
-            return;
-        }
-
-        /* check if collateral is locked */
-        if (l.locked) {
-            return;
-        }
-
-        Pool storage p = poolsData[l.poolAddr];
-        balance[msg.sender][_symbol] += p.collateral[msg.sender][_symbol];
-        p.collateral[msg.sender][_symbol] = 0;
-        return;
     }
 
     /**
