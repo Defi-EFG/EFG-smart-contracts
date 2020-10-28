@@ -771,15 +771,26 @@ contract LendingContract {
      * @notice returns type and amount of locked assets
      * @param _debtors_addr - debtor's address
      * @return bytes8 - array of symbols
-     * @return uint256 - arroy of amount of each collateral type , 8 decimals
      */
-    function getCollateralInfo(address _debtors_addr) external view returns(bytes8[] collateralSymbol, uint256[] collateralAmount) {
+    function getCollateralSymbols(address _debtors_addr) external view returns(bytes8[] collateralSymbol) {
         Loan storage l = debt[_debtors_addr];
 	for(uint i = 0; i < l.assetSymbol.length; i++) {
 	    collateralSymbol[i] = l.assetSymbol[i];
+	}
+	return collateralSymbol;
+    }
+
+    /**
+     * @notice returns type and amount of locked assets
+     * @param _debtors_addr - debtor's address
+     * @return uint256 - arroy of amount of each collateral type , 8 decimals
+     */
+    function getCollateralAmount(address _debtors_addr) external view returns(uint256[] collateralAmount) {
+        Loan storage l = debt[_debtors_addr];
+	for(uint i = 0; i < l.assetSymbol.length; i++) {
 	    collateralAmount[i] = l.deposits[l.assetSymbol[i]];
 	}
-	return (collateralSymbol, collateralAmount);
+	return collateralAmount;
     }
 
     /**
