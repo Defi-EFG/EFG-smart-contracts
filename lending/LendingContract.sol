@@ -19,7 +19,7 @@ contract LendingContract {
     ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
     bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
     address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
-    uint256 constant secsInYear = 365 * 24 * 60 * 60;
+    uint256 constant secsInDay = 24 * 60 * 60;
     uint256 constant secsIn7Hours = 7 * 60 * 60;
     uint256 private interestRateEFG; /* 4 decimal places */
     uint256 constant private periodRate = 5; /* portion of debt in GPT to get the 7 hours grace period , 2 decimal places (5%) */
@@ -86,10 +86,10 @@ contract LendingContract {
         GPT = ECRC20(_GPT_addr); /* smart contract address of GPT */
 
         /* interestRate is the rate per year the borrow must pay back
-         * Initial rate is 10% per year
-         * 4 decimal places (1,000/10,000=0.1=10%)
+         * Initial rate is 0.03% per day
+         * 4 decimal places (3/10,000=0.0003=0.03%)
          */
-        interestRateEFG = 1000;
+        interestRateEFG = 3;
 
         /* Initial collateral rate of ECOC is 60% , 4 decimal places. */
         collateralRates["ECOC"] = 6000;
@@ -417,7 +417,7 @@ contract LendingContract {
             l.interest +=
                 (l.EFGamount *
                     ((block.timestamp - l.timestamp) * l.interestRate)) /
-                (secsInYear * 1e4);
+                (secsInDay * 1e4);
         }
         l.timestamp = block.timestamp;
         l.EFGamount += _amount;
@@ -443,7 +443,7 @@ contract LendingContract {
         totalDebt = d.EFGamount + d.interest;
         uint256 lastInterest = ((d.EFGamount *
             ((block.timestamp - d.timestamp) * d.interestRate)) /
-            (secsInYear * 1e4));
+            (secsInDay * 1e4));
         totalDebt += lastInterest;
         return (totalDebt, d.poolAddr);
     }
