@@ -19,8 +19,8 @@ contract LendingContract {
     ECRC20[] asset; /* Token type to inherit transfer() and balanceOf() */
     bytes8[] assetName; /* all ECRC20 token symbols that can be accepted as collateral */
     address[] assetAddress; /* all ECRC20 contract addresses that can be accepted as collateral */
-    uint256 secsInYear = 365 * 24 * 60 * 60;
-    uint256 secsIn7Hours = 7 * 60 * 60;
+    uint256 constant secsInYear = 365 * 24 * 60 * 60;
+    uint256 constant secsIn7Hours = 7 * 60 * 60;
     uint256 private interestRateEFG; /* 4 decimal places */
     uint256 constant private periodRate = 5; /* portion of debt in GPT to get the 7 hours grace period , 2 decimal places (5%) */
 
@@ -56,6 +56,7 @@ contract LendingContract {
     mapping(address => Loan) private debt;
 
     /* Events */
+    event IncreaseCapitalEvent(bool result, address pool_founder, uint256 EFG_amount);
     event DepositECOCEvent(address depositor, uint256 ecoc_amount);
     event DepositAssetEvent(bool result, bytes8 _symbol, address depositor, uint256 _amount);
     event WithdrawECOCEvent(
@@ -169,11 +170,39 @@ contract LendingContract {
         address _leader_addr,
         uint256 _EFG_amount
     ) external ownerOnly() returns(uint256 numberOfPools) {
+	if(addressSearch(pool,_leader_addr) == -1) {
+		return pool.length;
+	    }
         pool.push(_leader_addr);
         Pool storage p = poolsData[_leader_addr];
         p.name = _name;
         p.remainingEFG = _EFG_amount;
         return pool.length;
+    }
+
+    /**
+     * @notice increase (deposit) EFG, pool founder only
+     * @param  _EFG_amount - EFG amount to deposit
+     * @return a boolean
+     */
+    function increaseCapital (uint256 _EFG_amount) external returns(bool result) {
+	/* only pool owner can deposit*/
+	if(addressSearch(pool, msg.sender) == -1) {
+	    emit IncreaseCapitalEvent(false, msg.sender, 0);
+	    return false;
+	}
+
+	/* send the tokens , it will fail if not appoved before */
+        result = EFG.transferFrom(msg.sender, address(this), _EFG_amount);
+        if (!result) {
+            emit IncreaseCapitalEvent(false, msg.sender, _EFG_amount);
+            return false;
+        }
+	Pool storage p = poolsData[msg.sender];
+	p.remainingEFG += _EFG_amount;
+	emit IncreaseCapitalEvent(true, msg.sender, _EFG_amount);
+
+	return true;
     }
 
     /**
