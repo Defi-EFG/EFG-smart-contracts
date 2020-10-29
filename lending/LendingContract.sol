@@ -723,12 +723,8 @@ contract LendingContract {
      * @return address[] - array of all members in the pool
      */
     function listPoolUsers(address _pool_addr) external view poolExists(_pool_addr) returns(address[] members) {
-	address[] memory allMembers;
-	Pool storage p = poolsData[_pool_addr];
-	for (uint i =0; i < p.members.length  ; i++) {
-	    allMembers[i] = p.members[i];
-	}
-	return allMembers;
+        Pool storage p = poolsData[_pool_addr];
+        return p.members;
     }
 
     /**
@@ -887,7 +883,7 @@ contract LendingContract {
      */
     function computeBorrowingPower(address _depositors_addr) internal view returns (uint lendableEFG) {
 	Loan storage l = debt[_depositors_addr];
-	require(l.locked);
+	//require(l.locked);
 
 	/* get the total debt */
 	uint256 totalDebt;
