@@ -170,7 +170,7 @@ contract LendingContract {
         address _leader_addr,
         uint256 _EFG_amount
     ) external ownerOnly() returns(uint256 numberOfPools) {
-	if(addressSearch(pool,_leader_addr) == -1) {
+	if(addressSearch(pool,_leader_addr) != -1) {
 		return pool.length;
 	    }
         pool.push(_leader_addr);
