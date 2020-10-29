@@ -912,11 +912,10 @@ contract LendingContract {
     /**
      * @notice compute borrowing power , same as computeBorrowingPower()
      * @param _depositors_addr - address of the depositor
-     * @return uint - borrowing power (left to lend) in USDT , 8 digits
+     * @return uint - borrowing power (left to lend) in EFG , 8 digits
      */
     function getBorrowLimit(address _depositors_addr) external view returns(uint lendable) {
-        require(USDTRates["EFG"]> 0);
-        return computeBorrowingPower(_depositors_addr)* 1e6 / (USDTRates["EFG"]);
+        return computeBorrowingPower(_depositors_addr);
     }
 
     /**
