@@ -823,6 +823,24 @@ contract LendingContract {
     }
 
     /**
+     * @notice returns estimated GPT to be used as delay for 7 hours
+     * @param _debtors_addr - debtor's address
+     * @return uint256 - GPT needed , 4 decimal place
+     */
+     function getEstimatedGPT(address _debtors_addr) external view returns(uint256 GPTamount) {
+         Loan memory l = debt[_debtors_addr];
+         if (l.EFGamount == 0) {
+            return 0;
+        }
+        uint256 totalDebt;
+	    (totalDebt, )  = getDebt(_debtors_addr);
+        uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
+        GPTamount = (totalDebt * periodRate * GPTRate) / 1e8; /* 1e2*1e6 */
+        GPTamount -= l.remainingGPT;
+        return GPTamount;
+     }
+
+    /**
      * @notice returns the pool address
      * @param _depositors_addr - debtor's address
      * @return uint256 - pools address or the zero address if no collateral exists
