@@ -845,6 +845,13 @@ contract LendingContract {
         return usersPool[_depositors_addr];
     }
 
+    /**
+     * @notice returns the addresses of all ECRC20 assets that are acceptable by the system
+     * @return address[]
+     */
+    function getAllAssets() external view returns(address[] allAcceptedAssets) {
+        return assetAddress;
+    }
      /**
      * @notice computes asset/EFG rate
      * @param _assetRate - asset/USDT
@@ -900,6 +907,15 @@ contract LendingContract {
 	    return 0;
 	}
         return (maxBorrowing - totalDebt);
+    }
+
+    /**
+     * @notice compute borrowing power , same as computeBorrowingPower()
+     * @param _depositors_addr - address of the depositor
+     * @return uint - borrowing power (left to lend) in EFG , 8 digits
+     */
+    function getBorrowLimit(address _depositors_addr) external view  returns(uint lendableEFG) {
+        return computeBorrowingPower(_depositors_addr);
     }
 
     /**
