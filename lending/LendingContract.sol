@@ -391,12 +391,12 @@ contract LendingContract {
      */
     function borrow(uint256 _amount) public returns(uint256 borrowedEFG) {
         address poolAddr = usersPool[msg.sender];
-	/* necessary checks */
-	require(!(addressSearch(pool, poolAddr) == -1 ));
-	require(_amount <= computeBorrowingPower(msg.sender));
-	require(_amount <= p.remainingEFG);
-
+	    /* necessary checks */
+	    require(!(addressSearch(pool, poolAddr) == -1 ));
+	    require(_amount <= computeBorrowingPower(msg.sender));
         Pool storage p = poolsData[poolAddr];
+	    require(_amount <= p.remainingEFG);
+        
         Loan storage l = debt[msg.sender];
         bool firstBorrow = !(l.locked);
 	
@@ -409,7 +409,7 @@ contract LendingContract {
             l.poolAddr = poolAddr;
 	    /* save the collateral rates */
 	    for (uint i = 0; i < l.assetSymbol.length; i++) {
-		l.collateralRate[i] = collateralRates[l.assetSymbol[i]];
+             l.collateralRate.push(collateralRates[l.assetSymbol[i]]);
 	    }
 	    p.members.push(msg.sender);
         } else {
@@ -422,12 +422,12 @@ contract LendingContract {
         l.timestamp = block.timestamp;
         l.EFGamount += _amount;
         p.remainingEFG -= _amount;
-	EFGBalance[msg.sender] += _amount;
 
         emit BorrowEvent(firstBorrow, poolAddr, msg.sender, _amount);
 
-	/* also withdraw that amount */
-	withdrawEFG(_amount);
+	    /* also withdraw that amount */
+        EFG.transfer(msg.sender, _amount);
+        emit WithdrawEFGEvent(msg.sender, _amount);
 
         return _amount;
     }
