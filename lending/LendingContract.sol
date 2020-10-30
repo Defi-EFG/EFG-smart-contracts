@@ -324,6 +324,7 @@ contract LendingContract {
 	    p.members.push(msg.sender);
 	    /* Initialize the Loan */
 	    l.assetSymbol.push("ECOC");
+	    l.collateralRate.push(collateralRates["ECOC"]);
 	    l.poolAddr = _pool_addr;
 	}
 	l.deposits["ECOC"] += msg.value;
@@ -376,6 +377,7 @@ contract LendingContract {
 	    p.members.push(msg.sender);
 	    /* Initialize the Loan */
 	    l.assetSymbol.push(_symbol);
+	    l.collateralRate.push(collateralRates[l.assetSymbol[uint(index)]]);
 	    l.poolAddr = _pool_addr; 
 	}
 	l.deposits[_symbol] += _amount;
@@ -407,10 +409,6 @@ contract LendingContract {
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
-	    /* save the collateral rates */
-	    for (uint i = 0; i < l.assetSymbol.length; i++) {
-             l.collateralRate.push(collateralRates[l.assetSymbol[i]]);
-	    }
 	    p.members.push(msg.sender);
         } else {
 	    /* update interest*/
