@@ -323,9 +323,12 @@ contract LendingContract {
 	    usersPool[msg.sender] = _pool_addr;
 	    p.members.push(msg.sender);
 	    /* Initialize the Loan */
+	    l.poolAddr = _pool_addr;
+	}
+	/* check if it is first deposit of this asset */
+	if(stringSearch(l.assetSymbol, "ECOC")==-1) {
 	    l.assetSymbol.push("ECOC");
 	    l.collateralRate.push(collateralRates["ECOC"]);
-	    l.poolAddr = _pool_addr;
 	}
 	l.deposits["ECOC"] += msg.value;
 
@@ -376,9 +379,12 @@ contract LendingContract {
 	    usersPool[msg.sender] = _pool_addr;
 	    p.members.push(msg.sender);
 	    /* Initialize the Loan */
-	    l.assetSymbol.push(_symbol);
-	    l.collateralRate.push(collateralRates[l.assetSymbol[uint(index)]]);
 	    l.poolAddr = _pool_addr; 
+	}
+	/* check if it is first deposit of this asset */
+	if(stringSearch(l.assetSymbol, _symbol)==-1) {
+	    l.assetSymbol.push(_symbol);
+	    l.collateralRate.push(collateralRates[_symbol]);
 	}
 	l.deposits[_symbol] += _amount;
 	
@@ -797,10 +803,7 @@ contract LendingContract {
      */
     function getCollateralSymbols(address _debtors_addr) external view returns(bytes8[] collateralSymbol) {
         Loan storage l = debt[_debtors_addr];
-	for(uint i = 0; i < l.assetSymbol.length; i++) {
-	    collateralSymbol[i] = l.assetSymbol[i];
-	}
-	return collateralSymbol;
+	return l.assetSymbol;
     }
 
     /**
