@@ -813,12 +813,12 @@ contract LendingContract {
      */
     function getCollateralAmount(address _debtors_addr) external view returns(uint256[] collateralAmount) {
         Loan storage l = debt[_debtors_addr];
+        uint256[] storage arr;
 	for(uint i = 0; i < l.assetSymbol.length; i++) {
-	    collateralAmount[i] = l.deposits[l.assetSymbol[i]];
+	    arr.push(l.deposits[l.assetSymbol[i]]);
 	}
-	return collateralAmount;
+	return arr;
     }
-
     /**
      * @notice returns estimated GPT to be used as delay for 7 hours
      * @param _debtors_addr - debtor's address
@@ -891,8 +891,6 @@ contract LendingContract {
      */
     function computeBorrowingPower(address _depositors_addr) internal view returns (uint lendableEFG) {
 	Loan storage l = debt[_depositors_addr];
-	//require(l.locked);
-
 	/* get the total debt */
 	uint256 totalDebt;
 	(totalDebt,) = getDebt(_depositors_addr);
