@@ -477,7 +477,7 @@ contract LendingContract {
             d.interest -= _amount;
             EFGBalance[msg.sender] -= _amount;
             p.remainingEFG += _amount;
-            emit RepayEvent(true , msg.sender, _amount);
+            emit RepayEvent(false , msg.sender, _amount);
             return true;
         }
 
@@ -488,7 +488,7 @@ contract LendingContract {
             d.EFGamount -= amountLeft;
             EFGBalance[msg.sender] -= _amount;
             p.remainingEFG += _amount;
-            emit RepayEvent(true , msg.sender, _amount);
+            emit RepayEvent(false , msg.sender, _amount);
             return true;
         } else {
             /* loan repayed in full, release the collateral */
