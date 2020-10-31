@@ -1,5 +1,6 @@
 *~
 testnet-*
+*.bin
 .env
 node_modules/
 

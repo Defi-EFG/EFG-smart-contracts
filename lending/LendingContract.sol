@@ -647,12 +647,12 @@ contract LendingContract {
            if not, include the remaining time to the new period*/
         uint256 period = secsIn7Hours;
         if (block.timestamp - l.lastGracePeriod < secsIn7Hours) {
-            period += (block.timestamp - l.lastGracePeriod);
+            period += (secsIn7Hours - block.timestamp + l.lastGracePeriod);
         }
 
         /* update loan data*/
         l.lastGracePeriod = block.timestamp + period;
-        l.remainingGPT -= (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2*/
+        l.remainingGPT -= (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
         emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
 
        return true;
