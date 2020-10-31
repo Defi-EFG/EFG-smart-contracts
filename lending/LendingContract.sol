@@ -472,6 +472,10 @@ contract LendingContract {
 	require(d.EFGamount !=0 );
         Pool storage p = poolsData[d.poolAddr];
 
+	/* update interest first */
+            d.interest += (d.EFGamount * ((block.timestamp - d.timestamp)
+			   * d.interestRate)) / (secsInDay * 1e4);
+
         if (_amount <= d.interest) {
             /* repay the interest first */
             d.interest -= _amount;
