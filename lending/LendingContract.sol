@@ -877,14 +877,15 @@ contract LendingContract {
      * @return uint - total collateral value in EFG , 8 digits
      */
     function computeCollateralValue(address _depositors_addr) internal view returns (uint value) {
-        Loan storage l = debt[_depositors_addr];
+       Loan storage l = debt[_depositors_addr];
 
-	uint256 totalValue = 0;
-        for(uint256 i = 0 ; i < l.assetSymbol.length; ++i ) {
-            totalValue += (l.deposits[l.assetSymbol[i]] * l.collateralRate[i]
-			   * computeEFGRate(USDTRates[l.assetSymbol[i]], USDTRates["EFG"])) / 1e10 ;
-        }
-       
+       uint256 totalValue = 0;
+       for(uint256 i = 0 ; i < l.assetSymbol.length; ++i ) {
+           totalValue += l.deposits[l.assetSymbol[i]] * l.collateralRate[i]
+	     * computeEFGRate(USDTRates[l.assetSymbol[i]], USDTRates["EFG"]);
+       }
+       totalValue /= 1e10 ; /* usdt rate 1e6, collateral rate 1e4 */
+
        return totalValue;
     }
 
