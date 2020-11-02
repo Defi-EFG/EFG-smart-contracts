@@ -893,24 +893,18 @@ contract LendingContract {
      * @return uint - borrowing power (left to lend) in EFG , 8 digits
      */
     function computeBorrowingPower(address _depositors_addr) internal view returns (uint lendableEFG) {
-	Loan storage l = debt[_depositors_addr];
 	/* get the total debt */
 	uint256 totalDebt;
 	(totalDebt,) = getDebt(_depositors_addr);
 	/* compute the maximum borrowing power in EFG */
 	uint256 maxBorrowing;
-	for (uint i = 0; i < l.assetSymbol.length; i++) {
-	    maxBorrowing += (l.deposits[l.assetSymbol[i]] * l.collateralRate[i]
-			     * USDTRates[l.assetSymbol[i]]) / (USDTRates["EFG"] * 1e4);
-	}
-
+	maxBorrowing = computeCollateralValue(_depositors_addr);
 	/* compute the difference*/
 	if (maxBorrowing <= totalDebt) {
 	    return 0;
 	}
         return (maxBorrowing - totalDebt);
     }
-
     /**
      * @notice compute borrowing power , same as computeBorrowingPower()
      * @param _depositors_addr - address of the depositor
