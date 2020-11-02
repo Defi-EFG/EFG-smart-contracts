@@ -584,8 +584,8 @@ contract LendingContract {
     {
 	require(canSeize(_debtors_addr));
         Loan storage l = debt[_debtors_addr];
-	/* check if the caller is the pool leader*/
-        require(msg.sender == l.poolAddr);
+	/* check if the caller is the pool leader or the contract owner */
+        require((msg.sender == l.poolAddr) || (msg.sender == owner));
 
 	/* seize the collateral */
         Pool storage p = poolsData[l.poolAddr];
