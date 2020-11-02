@@ -127,7 +127,7 @@ contract LendingContract {
 	    return false;
 	}
         /* check if grace period is still running */
-	if((block.timestamp - l.lastGracePeriod) <= secsIn7Hours) {
+	if(block.timestamp < l.lastGracePeriod) {
 	    return false;
 	}
         /* get total debt*/
@@ -646,18 +646,16 @@ contract LendingContract {
             }
         }
 
-        /* trigger the protection */
-        /* check if the last period expired or not;
-           if not, include the remaining time to the new period*/
+	 /* trigger the protection and update loan data*/
         uint256 period = secsIn7Hours;
-        if (block.timestamp - l.lastGracePeriod < secsIn7Hours) {
-            period += (secsIn7Hours - block.timestamp + l.lastGracePeriod);
+        if (l.lastGracePeriod > block.timestamp) {
+            l.lastGracePeriod += period;
+        } else {
+             l.lastGracePeriod = block.timestamp + period;
         }
 
-        /* update loan data*/
-        l.lastGracePeriod = block.timestamp + period;
         l.remainingGPT -= (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
-        emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
+        emit ExtendGracePeriodEvent(true, msg.sender, _gpt_amount);
 
        return true;
     }
