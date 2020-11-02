@@ -475,7 +475,7 @@ contract LendingContract {
 	/* update interest first */
             d.interest += (d.EFGamount * ((block.timestamp - d.timestamp)
 			   * d.interestRate)) / (secsInDay * 1e4);
-
+	    d.timestamp = block.timestamp;
         if (_amount <= d.interest) {
             /* repay the interest first */
             d.interest -= _amount;
