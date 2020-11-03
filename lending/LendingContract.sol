@@ -530,6 +530,20 @@ contract LendingContract {
         returns(bool result)
     {
         require(_amount > 0);
+	Loan storage l = debt[msg.sender];
+        int index = stringSearch(l.assetSymbol, "ECOC");
+        if (!l.locked && (index != -1)) {
+            balance[msg.sender]["ECOC"] += l.deposits["ECOC"];
+            delete l.assetSymbol[uint(index)];
+            Pool storage p = poolsData[l.poolAddr];
+            p.collateral[msg.sender]["ECOC"] -= l.deposits["ECOC"];
+            l.deposits["ECOC"] = 0;
+            /* if all collateral were withdrawn then delete the loan */
+            if (computeCollateralValue(msg.sender) == 0) {
+                delete debt[msg.sender];
+                delete usersPool[msg.sender];
+            }
+        }
         require(_amount <= balance[msg.sender]["ECOC"]);
         balance[msg.sender]["ECOC"] -= _amount;
         _beneficiars_addr.transfer(_amount);
@@ -560,17 +574,30 @@ contract LendingContract {
      */
     function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
         require(_amount > 0);
+	Loan storage l = debt[msg.sender];
         int index = stringSearch(assetName, _symbol);
+        if (!l.locked && (index != -1)) {
+            balance[msg.sender][_symbol] += l.deposits[_symbol];
+            delete l.assetSymbol[uint(index)];
+            Pool storage p = poolsData[l.poolAddr];
+            p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
+            l.deposits[_symbol] = 0;
+            /* if all collateral were withdrawn then delete the loan */
+            if (computeCollateralValue(msg.sender) == 0) {
+                delete debt[msg.sender];
+                delete usersPool[msg.sender];
+            }
+        }
         if ((index == -1) || (balance[msg.sender][_symbol] < _amount)) {
             emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
-        return false; 
+        return false;
         }
 	
         balance[msg.sender][_symbol] -= _amount;
         /* send the tokens */
         asset[uint(index)].transfer(msg.sender, _amount);
         emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
-        return true;        
+        return true;
     }
 
     /**
