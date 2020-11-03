@@ -480,7 +480,7 @@ contract LendingContract {
             /* repay the interest first */
             d.interest -= _amount;
             EFGBalance[msg.sender] -= _amount;
-            p.remainingEFG += _amount;
+	    EFGBalance[d.poolAddr] += _amount;
             emit RepayEvent(false , msg.sender, _amount);
             return true;
         }
@@ -491,14 +491,14 @@ contract LendingContract {
         if (d.EFGamount > amountLeft) {
             d.EFGamount -= amountLeft;
             EFGBalance[msg.sender] -= _amount;
-            p.remainingEFG += _amount;
+	    EFGBalance[d.poolAddr] += _amount;
             emit RepayEvent(false , msg.sender, _amount);
             return true;
         } else {
             /* loan repayed in full, release the collateral */
             amountLeft -= d.EFGamount;
             EFGBalance[msg.sender] -= (_amount - amountLeft);
-            p.remainingEFG += (_amount - amountLeft);
+	    EFGBalance[d.poolAddr] += (_amount - amountLeft);
 	    /* release all collateral */
 	    for (uint i=0; i < d.assetSymbol.length; i++ ) {
 		balance[msg.sender][d.assetSymbol[i]] += d.deposits[d.assetSymbol[i]];
