@@ -845,6 +845,7 @@ contract LendingContract {
      * @return uint256 - pools address or the zero address if no collateral exists
      */
     function getUserPool(address _depositors_addr) external view returns(address) {
+	require(usersPool[_depositors_addr] != address(0x0));
         return usersPool[_depositors_addr];
     }
 
