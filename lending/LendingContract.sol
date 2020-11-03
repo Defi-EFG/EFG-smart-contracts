@@ -986,4 +986,12 @@ contract LendingContract {
         }
         return index;
     }
+
+    function convertToBytes(string pureString) internal pure returns (bytes8 converted){
+        bytes memory str = bytes(pureString);
+        require (str.length > 0);
+          assembly {
+            converted := mload(add(pureString, 32))
+        }
+    }
 }
