@@ -906,12 +906,12 @@ contract LendingContract {
         return (maxBorrowing - totalDebt);
     }
     /**
-     * @notice compute borrowing power , same as computeBorrowingPower()
+     * @notice compute borrowing limit , same as computeCollateralValue()
      * @param _depositors_addr - address of the depositor
-     * @return uint - borrowing power (left to lend) in EFG , 8 digits
+     * @return uint - borrowing limit (left to lend) in EFG , 8 digits
      */
     function getBorrowLimit(address _depositors_addr) external view returns(uint lendable) {
-        return computeBorrowingPower(_depositors_addr);
+        return computeCollateralValue(_depositors_addr);
     }
 
     /**
