@@ -495,7 +495,7 @@ contract LendingContract {
             emit RepayEvent(false , msg.sender, _amount);
             return true;
         } else {
-            /* loan repayed in full, release the collateral */
+            /* loan repayed in full, release the collateral and GPT */
             amountLeft -= d.EFGamount;
             EFGBalance[msg.sender] -= (_amount - amountLeft);
 	    EFGBalance[d.poolAddr] += (_amount - amountLeft);
@@ -504,6 +504,7 @@ contract LendingContract {
 		balance[msg.sender][d.assetSymbol[i]] += d.deposits[d.assetSymbol[i]];
 		p.collateral[msg.sender][d.assetSymbol[i]] = 0;
 	    }
+	    balance[msg.sender]["GPT"] += d.remainingGPT;
             emit RepayEvent(true , msg.sender, _amount - amountLeft);
 
 	    int index;
@@ -542,6 +543,10 @@ contract LendingContract {
             if (computeCollateralValue(msg.sender) == 0) {
                 delete debt[msg.sender];
                 delete usersPool[msg.sender];
+		int memberIndex = addressSearch(p.members, msg.sender);
+		if (index !=-1 ) { /* reduntant check, element must exist anyway */
+		    delete p.members[uint(memberIndex)];
+		}
             }
         }
         require(_amount <= balance[msg.sender]["ECOC"]);
@@ -586,6 +591,10 @@ contract LendingContract {
             if (computeCollateralValue(msg.sender) == 0) {
                 delete debt[msg.sender];
                 delete usersPool[msg.sender];
+		int memberIndex = addressSearch(p.members, msg.sender);
+		if (index !=-1 ) { /* reduntant check, element must exist anyway */
+		    delete p.members[uint(memberIndex)];
+		}
             }
         }
         if ((index == -1) || (balance[msg.sender][_symbol] < _amount)) {
@@ -681,7 +690,9 @@ contract LendingContract {
              l.lastGracePeriod = block.timestamp + period;
         }
 
-        l.remainingGPT -= (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
+        uint256 consumedGPT = (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
+	l.remainingGPT -= consumedGPT;
+	balance[owner]["GPT"] += consumedGPT;
         emit ExtendGracePeriodEvent(true, msg.sender, _gpt_amount);
 
        return true;
@@ -694,10 +705,10 @@ contract LendingContract {
      * @return bool - true on success, else false
      */
     function withdrawGPT(address _beneficiar, uint256 _amount) external ownerOnly() returns(bool result){
-        require(GPT.balanceOf(address(this)) > 0);
+        require(balance[owner]["GPT"] > 0);
         uint256 requestedAmount = _amount;
-        if ((_amount == 0) || ((_amount > GPT.balanceOf(address(this))))) {
-            requestedAmount = GPT.balanceOf(address(this));
+        if ((_amount == 0) || ((_amount > balance[owner]["GPT"]))) {
+            requestedAmount = balance[owner]["GPT"];
         }
 
         /* send the GPT tokens */
