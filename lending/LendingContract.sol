@@ -471,14 +471,22 @@ contract LendingContract {
     function repay(uint256 _amount) external returns (bool result) {
         require(_amount > 0);
 	Loan storage d = debt[msg.sender];
+	uint256 maxEFG = d.EFGamount + d.interest + (d.EFGamount * ((block.timestamp - d.timestamp)
+			* d.interestRate)) / (secsInDay * 1e4);
+	uint256 amount;
+	if (_amount > maxEFG) {
+	    amount = maxEFG;
+	} else {
+	    amount = _amount;
+	}
 
 	/* send EFG first , it will fail if not appoved before */
-        result = EFG.transferFrom(msg.sender, address(this), _amount);
+        result = EFG.transferFrom(msg.sender, address(this), amount);
         if (!result) {
-            emit DepositAssetEvent(false, "EFG", msg.sender, _amount);
+            emit DepositAssetEvent(false, "EFG", msg.sender, amount);
             return false;
         }
-	EFGBalance[msg.sender] += _amount;
+	EFGBalance[msg.sender] += amount;
 
 	require(d.EFGamount !=0 );
         Pool storage p = poolsData[d.poolAddr];
@@ -487,45 +495,33 @@ contract LendingContract {
             d.interest += (d.EFGamount * ((block.timestamp - d.timestamp)
 			   * d.interestRate)) / (secsInDay * 1e4);
 	    d.timestamp = block.timestamp;
-        if (_amount <= d.interest) {
+        if (amount <= d.interest) {
             /* repay the interest first */
-            d.interest -= _amount;
-            EFGBalance[msg.sender] -= _amount;
-	    EFGBalance[d.poolAddr] += _amount;
-            emit RepayEvent(false , msg.sender, _amount);
+            d.interest -= amount;
+            EFGBalance[msg.sender] -= amount;
+	    EFGBalance[d.poolAddr] += amount;
+            emit RepayEvent(false , msg.sender, amount);
             return true;
         }
 
         /* repay amount is greater than interest, decrease the loan */
-        uint256 amountLeft = _amount - d.interest;
+        uint256 amountLeft = amount - d.interest;
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
             d.EFGamount -= amountLeft;
-            EFGBalance[msg.sender] -= _amount;
-	    EFGBalance[d.poolAddr] += _amount;
-            emit RepayEvent(false , msg.sender, _amount);
+            EFGBalance[msg.sender] -= amount;
+	    EFGBalance[d.poolAddr] += amount;
+            emit RepayEvent(false , msg.sender, amount);
             return true;
         } else {
             /* loan repayed in full, release the collateral and GPT */
-            amountLeft -= d.EFGamount;
-            EFGBalance[msg.sender] -= (_amount - amountLeft);
-	    EFGBalance[d.poolAddr] += (_amount - amountLeft);
-	    /* release all collateral */
-	    for (uint i=0; i < d.assetSymbol.length; i++ ) {
-		balance[msg.sender][d.assetSymbol[i]] += d.deposits[d.assetSymbol[i]];
-		p.collateral[msg.sender][d.assetSymbol[i]] = 0;
-	    }
-	    balance[msg.sender]["GPT"] += d.remainingGPT;
-            emit RepayEvent(true , msg.sender, _amount - amountLeft);
-
-	    int index;
-	    index = addressSearch(p.members, msg.sender);
-	    if (index !=-1 ) { /* reduntant check, element must exist anyway */
-		delete p.members[uint(index)];
-	    }
-	    delete usersPool[msg.sender];
-	    /* delete loan data */
-	    delete debt[msg.sender];
+	    d.EFGamount = 0;
+	    EFGBalance[msg.sender] -= amount;
+	    EFGBalance[d.poolAddr] += amount;
+            emit RepayEvent(true , msg.sender, amount);
+	    
+	    /* unlock the loan */
+	    d.locked = false;
             return true;
         }
     }
@@ -552,12 +548,7 @@ contract LendingContract {
             l.deposits["ECOC"] = 0;
             /* if all collateral were withdrawn then delete the loan */
             if (computeCollateralValue(msg.sender) == 0) {
-                delete debt[msg.sender];
-                delete usersPool[msg.sender];
-		int memberIndex = addressSearch(p.members, msg.sender);
-		if (index !=-1 ) { /* reduntant check, element must exist anyway */
-		    delete p.members[uint(memberIndex)];
-		}
+                deleteLoan(msg.sender);
             }
         }
         require(_amount <= balance[msg.sender]["ECOC"]);
@@ -600,12 +591,7 @@ contract LendingContract {
             l.deposits[_symbol] = 0;
             /* if all collateral were withdrawn then delete the loan */
             if (computeCollateralValue(msg.sender) == 0) {
-                delete debt[msg.sender];
-                delete usersPool[msg.sender];
-		int memberIndex = addressSearch(p.members, msg.sender);
-		if (index !=-1 ) { /* reduntant check, element must exist anyway */
-		    delete p.members[uint(memberIndex)];
-		}
+                deleteLoan(msg.sender);
             }
         }
         if ((index == -1) || (balance[msg.sender][_symbol] < _amount)) {
@@ -998,11 +984,15 @@ contract LendingContract {
         return index;
     }
 
-    function convertToBytes(string pureString) internal pure returns (bytes8 converted){
-        bytes memory str = bytes(pureString);
-        require (str.length > 0);
-          assembly {
-            converted := mload(add(pureString, 32))
-        }
+    function deleteLoan(address _debtors_addr) internal returns (bool) {
+	Loan storage l = debt[msg.sender];
+	Pool storage p = poolsData[l.poolAddr];
+	/* handle GPT here ?*/
+	delete debt[_debtors_addr];
+        delete usersPool[_debtors_addr];
+
+	int memberIndex = addressSearch(p.members, _debtors_addr);
+	delete p.members[uint(memberIndex)];
+	return true;
     }
 }
