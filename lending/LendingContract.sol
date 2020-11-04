@@ -141,20 +141,31 @@ contract LendingContract {
     }
 
     /**
-     * @notice add new asset, only contract owner
+     * @notice add or update new asset, only contract owner
      * @param _symbol - the symbol of the asset
      * @param  _contract_addr - smart contract address of the ECRC20
+     * @param _collateral_rate - rate for the symbol , 4 digits
      * @return an uint256 , the current number of ECRC20
      */
-    function addNewAsset(bytes8 _symbol, address _contract_addr)
+    function addNewAsset(bytes8 _symbol, address _contract_addr, uint _collateral_rate)
         external
         ownerOnly()
         returns(uint256 numberOfAssets)
     {
-        assetAddress.push(_contract_addr);
-        assetName.push(_symbol);
-        ECRC20 newToken = ECRC20(_contract_addr);
-        asset.push(newToken);
+    require (_collateral_rate>0 && _collateral_rate < 1e4);
+	int index = addressSearch(assetAddress, _contract_addr);
+	if (index == -1) {
+	    /* new asset */
+	    assetAddress.push(_contract_addr);
+	    assetName.push(_symbol);
+	    ECRC20 newToken = ECRC20(_contract_addr);
+	    asset.push(newToken);
+	    collateralRates[_symbol] = _collateral_rate;
+        } else {
+	        /* asset exists, just update the symbol */
+	        assetName[uint(index)] = _symbol;
+	        collateralRates[_symbol] = _collateral_rate;
+        }
         return assetAddress.length;
     }
 
