@@ -541,18 +541,23 @@ contract LendingContract {
 	Loan storage l = debt[msg.sender];
         int index = stringSearch(l.assetSymbol, "ECOC");
         if (!l.locked && (index != -1)) {
-            balance[msg.sender]["ECOC"] += l.deposits["ECOC"];
-            delete l.assetSymbol[uint(index)];
+	    /* the caller is common user */
+	    require(_amount <= l.deposits["ECOC"]);
+	    l.deposits["ECOC"] -= _amount;
+	    if (l.deposits["ECOC"] == 0) {
+		delete l.assetSymbol[uint(index)];
+	    }
             Pool storage p = poolsData[l.poolAddr];
-            p.collateral[msg.sender]["ECOC"] -= l.deposits["ECOC"];
-            l.deposits["ECOC"] = 0;
+            p.collateral[msg.sender]["ECOC"] -= _amount;
             /* if all collateral were withdrawn then delete the loan */
             if (computeCollateralValue(msg.sender) == 0) {
                 deleteLoan(msg.sender);
             }
-        }
-        require(_amount <= balance[msg.sender]["ECOC"]);
-        balance[msg.sender]["ECOC"] -= _amount;
+        } else {
+	    /* for owner and pool leaders */
+	    require(_amount <= balance[msg.sender]["ECOC"]);	
+	    balance[msg.sender]["ECOC"] -= _amount;
+	}
         _beneficiars_addr.transfer(_amount);
 
         emit WithdrawECOCEvent(msg.sender, _beneficiars_addr, _amount);
