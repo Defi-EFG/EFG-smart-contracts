@@ -541,7 +541,7 @@ contract LendingContract {
 	Loan storage l = debt[msg.sender];
         int index = stringSearch(l.assetSymbol, "ECOC");
         if (!l.locked && (index != -1)) {
-	    /* the caller is common user */
+	    /* the caller is a common user */
 	    require(_amount <= l.deposits["ECOC"]);
 	    l.deposits["ECOC"] -= _amount;
 	    if (l.deposits["ECOC"] == 0) {
@@ -555,12 +555,45 @@ contract LendingContract {
             }
         } else {
 	    /* for owner and pool leaders */
-	    require(_amount <= balance[msg.sender]["ECOC"]);	
+	    require(_amount <= balance[msg.sender]["ECOC"]);
 	    balance[msg.sender]["ECOC"] -= _amount;
 	}
         _beneficiars_addr.transfer(_amount);
 
         emit WithdrawECOCEvent(msg.sender, _beneficiars_addr, _amount);
+        return true;
+    }
+
+    /**
+     * @notice withdraw Asset (ECRC20)
+     * @param _amount - amount of asset to be withdrawn
+     * @return bool
+     */
+    function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
+        require(_amount > 0);
+	Loan storage l = debt[msg.sender];
+        int index = stringSearch(l.assetSymbol, _symbol);
+        if (!l.locked && (index != -1)) {
+	    /* the caller is a common user */
+            l.deposits[_symbol] -= _amount;
+            if (l.deposits[_symbol] == 0) {
+		delete l.assetSymbol[uint(index)];
+	    }
+            Pool storage p = poolsData[l.poolAddr];
+            p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
+            /* if all collateral were withdrawn then delete the loan */
+            if (computeCollateralValue(msg.sender) == 0) {
+                deleteLoan(msg.sender);
+            }
+        }  else {
+	    /* for owner and pool leaders */
+	    require(_amount <= balance[msg.sender][_symbol]);
+	    balance[msg.sender][_symbol] -= _amount;
+	}
+	
+        /* send the tokens */
+        asset[uint(index)].transfer(msg.sender, _amount);
+        emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
         return true;
     }
 
@@ -576,38 +609,6 @@ contract LendingContract {
         /* send the tokens */
         EFG.transfer(msg.sender, _amount);
         emit WithdrawEFGEvent(msg.sender, _amount);
-        return true;
-    }
-    
-    /**
-     * @notice withdraw Asset (ECRC20)
-     * @param _amount - amount of asset to be withdrawn
-     * @return bool
-     */
-    function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
-        require(_amount > 0);
-	Loan storage l = debt[msg.sender];
-        int index = stringSearch(assetName, _symbol);
-        if (!l.locked && (index != -1)) {
-            balance[msg.sender][_symbol] += l.deposits[_symbol];
-            delete l.assetSymbol[uint(index)];
-            Pool storage p = poolsData[l.poolAddr];
-            p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
-            l.deposits[_symbol] = 0;
-            /* if all collateral were withdrawn then delete the loan */
-            if (computeCollateralValue(msg.sender) == 0) {
-                deleteLoan(msg.sender);
-            }
-        }
-        if ((index == -1) || (balance[msg.sender][_symbol] < _amount)) {
-            emit WithdrawAssetEvent(false, msg.sender, _symbol, _amount);
-        return false;
-        }
-	
-        balance[msg.sender][_symbol] -= _amount;
-        /* send the tokens */
-        asset[uint(index)].transfer(msg.sender, _amount);
-        emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
         return true;
     }
 
