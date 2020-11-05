@@ -543,9 +543,6 @@ contract LendingContract {
 	    /* the caller is a common user */
 	    require(_amount <= l.deposits["ECOC"]);
 	    l.deposits["ECOC"] -= _amount;
-	    if (l.deposits["ECOC"] == 0) {
-		delete l.assetSymbol[uint(index)];
-	    }
             Pool storage p = poolsData[l.poolAddr];
             p.collateral[msg.sender]["ECOC"] -= _amount;
             /* if all collateral were withdrawn then delete the loan */
@@ -565,10 +562,12 @@ contract LendingContract {
 
     /**
      * @notice withdraw Asset (ECRC20)
+     * @param _symbol - asset symbol
      * @param _amount - amount of asset to be withdrawn
+     * @param _beneficiars_addr - withdraw to this address
      * @return bool
      */
-    function withdrawAsset(bytes8 _symbol, uint256 _amount) external returns(bool result) {
+    function withdrawAsset(bytes8 _symbol, uint256 _amount, address _beneficiars_addr) external returns(bool result) {
         require(_amount > 0);
 	Loan storage l = debt[msg.sender];
         int index = stringSearch(l.assetSymbol, _symbol);
@@ -576,9 +575,6 @@ contract LendingContract {
             /* the caller is a common user */
             require(_amount <= l.deposits[_symbol]);
             l.deposits[_symbol] -= _amount;
-            if (l.deposits[_symbol] == 0) {
-		delete l.assetSymbol[uint(index)];
-	    }
             Pool storage p = poolsData[l.poolAddr];
             p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
             /* if all collateral were withdrawn then delete the loan */
@@ -593,8 +589,8 @@ contract LendingContract {
 	
         /* send the tokens */
         index =  stringSearch(assetName, _symbol);
-        asset[uint(index)].transfer(msg.sender, _amount);
-        emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
+        asset[uint(index)].transfer(_beneficiars_addr, _amount);
+        emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
         return true;
     }
 
