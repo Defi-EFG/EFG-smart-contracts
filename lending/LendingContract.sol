@@ -489,7 +489,6 @@ contract LendingContract {
 	EFGBalance[msg.sender] += amount;
 
 	require(d.EFGamount !=0 );
-        Pool storage p = poolsData[d.poolAddr];
 
 	/* update interest first */
             d.interest += (d.EFGamount * ((block.timestamp - d.timestamp)
