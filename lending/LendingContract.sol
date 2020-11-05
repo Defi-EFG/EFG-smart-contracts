@@ -573,7 +573,8 @@ contract LendingContract {
 	Loan storage l = debt[msg.sender];
         int index = stringSearch(l.assetSymbol, _symbol);
         if (!l.locked && (index != -1)) {
-	    /* the caller is a common user */
+            /* the caller is a common user */
+            require(_amount <= l.deposits[_symbol]);
             l.deposits[_symbol] -= _amount;
             if (l.deposits[_symbol] == 0) {
 		delete l.assetSymbol[uint(index)];
