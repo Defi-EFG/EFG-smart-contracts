@@ -591,6 +591,7 @@ contract LendingContract {
 	}
 	
         /* send the tokens */
+        index =  stringSearch(assetName, _symbol);
         asset[uint(index)].transfer(msg.sender, _amount);
         emit WithdrawAssetEvent(true, msg.sender, _symbol, _amount);
         return true;
