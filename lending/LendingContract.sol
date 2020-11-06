@@ -972,7 +972,9 @@ contract LendingContract {
     function deleteLoan(address _debtors_addr) internal returns (bool) {
 	Loan storage l = debt[msg.sender];
 	Pool storage p = poolsData[l.poolAddr];
-	/* handle GPT here ?*/
+	/* return GPT to the user */
+	balance[_debtors_addr]["GPT"] += l.remainingGPT;
+
 	delete debt[_debtors_addr];
         delete usersPool[_debtors_addr];
 
