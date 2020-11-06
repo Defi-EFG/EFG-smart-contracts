@@ -979,7 +979,14 @@ contract LendingContract {
         delete usersPool[_debtors_addr];
 
 	int memberIndex = addressSearch(p.members, _debtors_addr);
-	delete p.members[uint(memberIndex)];
+	/* swap with last element and remove */
+	uint length = p.members.length;
+	if(length>0) {
+	    p.members[uint(memberIndex)] = p.members[length-1];
+	    delete p.members[length-1];
+	    p.members.length--;
+	}
+
 	return true;
     }
 }
