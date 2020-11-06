@@ -50,7 +50,7 @@ contract LendingContract {
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
         uint256 lastGracePeriod; /* timestamp of last trigger of grace period*/
-        uint256 remainingGPT; /* GPT left */
+        uint256 remainingGPT; /* GPT left , 4 digits */
         address poolAddr; /* pool address */
     }
     mapping(address => Loan) private debt;
@@ -854,7 +854,7 @@ contract LendingContract {
         uint256 totalDebt;
 	    (totalDebt, )  = getDebt(_debtors_addr);
         uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
-        GPTamount = (totalDebt * periodRate * GPTRate) / 1e8; /* 1e2*1e6 */
+        GPTamount = (totalDebt * periodRate * GPTRate) / 1e12; /* 1e2*1e6*(1e8*1e-4) */
         GPTamount -= l.remainingGPT;
         return GPTamount;
      }
