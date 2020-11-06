@@ -569,43 +569,48 @@ contract LendingContract {
      */
     function withdrawAsset(bytes8 _symbol, uint256 _amount, address _beneficiars_addr) external returns(bool result) {
         require(_amount > 0);
-	Loan storage l = debt[msg.sender];
-        int index = stringSearch(l.assetSymbol, _symbol);
-        if (!l.locked && (index != -1)) {
-            /* the caller is a common user */
-            require(_amount <= l.deposits[_symbol]);
-            l.deposits[_symbol] -= _amount;
-            Pool storage p = poolsData[l.poolAddr];
-            p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
-            /* if all collateral were withdrawn then delete the loan */
-            if (computeCollateralValue(msg.sender) == 0) {
-                deleteLoan(msg.sender);
-            }
-        }  else {
-	    /* for owner and pool leaders */
-	    require(_amount <= balance[msg.sender][_symbol]);
-	    balance[msg.sender][_symbol] -= _amount;
-	}
+	if (_symbol != "EFG") {
+	    Loan storage l = debt[msg.sender];
+	    int index = stringSearch(l.assetSymbol, _symbol);
+	    if (!l.locked && (index != -1)) {
+		/* the caller is a common user */
+		require(_amount <= l.deposits[_symbol]);
+		l.deposits[_symbol] -= _amount;
+		Pool storage p = poolsData[l.poolAddr];
+		p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
+		/* if all collateral were withdrawn then delete the loan */
+		if (computeCollateralValue(msg.sender) == 0) {
+		    deleteLoan(msg.sender);
+		}
+	    }  else {
+		/* for owner and pool leaders */
+		require(_amount <= balance[msg.sender][_symbol]);
+		balance[msg.sender][_symbol] -= _amount;
+	    }
 	
-        /* send the tokens */
-        index =  stringSearch(assetName, _symbol);
-        asset[uint(index)].transfer(_beneficiars_addr, _amount);
-        emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
-        return true;
+	    /* send the tokens */
+	    index =  stringSearch(assetName, _symbol);
+	    asset[uint(index)].transfer(_beneficiars_addr, _amount);
+	    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+	    return true;
+	} else {
+	    /* send the EFG */
+	    return withdrawEFG(_amount, _beneficiars_addr);
+	}
     }
 
     /**
      * @notice withdraw EFG
      * @param _amount - EFG amount
+     * @param _beneficiars_addr - withdraw to this address
      * @return bool
      */
-    function withdrawEFG(uint256 _amount) public returns(bool result) {
-        require(_amount > 0);
+    function withdrawEFG(uint256 _amount, address _beneficiars_addr) internal returns(bool result) {
         require(EFGBalance[msg.sender] >= _amount);
         EFGBalance[msg.sender] -= _amount;
         /* send the tokens */
-        EFG.transfer(msg.sender, _amount);
-        emit WithdrawEFGEvent(msg.sender, _amount);
+        EFG.transfer(_beneficiars_addr, _amount);
+        emit WithdrawEFGEvent( _beneficiars_addr, _amount);
         return true;
     }
 
@@ -756,7 +761,8 @@ contract LendingContract {
      * @param _pool_addr - pool address
      * @return address[] - array of all members in the pooladdresses of debtors that fallen short
      */
-    function listLiquidable(address _pool_addr) external view poolExists(_pool_addr) returns(address[] allLiquidable){
+    function listLiquidable(address _pool_addr) external view poolExists(_pool_addr)
+      returns(address[] allLiquidable){
 	address[] memory fallenShort;
 	Pool memory p = poolsData[_pool_addr];
 	for (uint i =0; i < p.members.length  ; i++) {
