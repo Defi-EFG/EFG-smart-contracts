@@ -78,7 +78,7 @@ contract LendingContract {
         address borrower
     );
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
-    event ExtendGracePeriodEvent(bool result, address debtors_addr, uint256 amount);
+    event ExtendGracePeriodEvent(address debtors_addr, uint256 amount);
 
     function LendingContract (address _EFG_addr, address _GPT_addr) public {
         owner = msg.sender;
@@ -650,36 +650,26 @@ contract LendingContract {
 
     /**
      * @notice deposit GPT to extend Grace Period
-     * @param _gpt_amount - amount of GPT to consume. If zero ,
-     * still can trigget the protection if enough GPT left from the previosu use
+     * @param _gpt_amount - amount of GPT to consume (4 decimals)
+     * If zero , still can trigget the protection if enough GPT left from the previosu use
      * @return bool - true on success, else false
      */
     function extendGracePeriod(uint256 _gpt_amount) external returns(bool result) {
         /* check if debt exists*/
         Loan storage l = debt[msg.sender];
-        if (l.EFGamount == 0) {
-            emit ExtendGracePeriodEvent(false, msg.sender , 0);
-            return false;
-        }
+
+        require(l.EFGamount > 0);
 
         /* check if GPT is enough to activate the grace period */
         uint256 totalDebt;
 	    (totalDebt, )  = getDebt(msg.sender);
         uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
-        if (totalDebt * periodRate / 1e2 > (l.remainingGPT + _gpt_amount) * GPTRate / 1e6) {
-            emit ExtendGracePeriodEvent(false, msg.sender , 0);
-            return false;
-        }
+        require(totalDebt * periodRate / 1e2 > (l.remainingGPT + _gpt_amount *1e4) * GPTRate / 1e6);
 
         if (_gpt_amount != 0) {
             /* deposit GPT  - it will fail if not appoved before */
-            result = GPT.transferFrom(msg.sender, address(this), _gpt_amount);
-            if (!result) {
-                emit ExtendGracePeriodEvent(false, msg.sender, _gpt_amount);
-                return false;
-            } else {
-                l.remainingGPT += _gpt_amount;
-            }
+            require(GPT.transferFrom(msg.sender, address(this), _gpt_amount));
+            l.remainingGPT += _gpt_amount;
         }
 
 	 /* trigger the protection and update loan data*/
@@ -693,7 +683,7 @@ contract LendingContract {
         uint256 consumedGPT = (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
 	l.remainingGPT -= consumedGPT;
 	balance[owner]["GPT"] += consumedGPT;
-        emit ExtendGracePeriodEvent(true, msg.sender, _gpt_amount);
+        emit ExtendGracePeriodEvent(msg.sender, _gpt_amount);
 
        return true;
     }
@@ -721,14 +711,6 @@ contract LendingContract {
             return true;
         }
     }
-
-    /**
-     * @notice display GPT balance
-     * @return uint256 - available GPT in smart contract
-     */
-    function availableGPT() external view returns (uint256 available_GPT) {
-	return GPT.balanceOf(address(this));
-    }	
 
     /**
      * @notice display EFG balance
