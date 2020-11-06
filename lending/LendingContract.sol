@@ -713,15 +713,6 @@ contract LendingContract {
     }
 
     /**
-     * @notice display EFG balance
-     * @param _address beneficiar's address
-     * @return uint256
-     */
-    function getEFGBalance(address _address) external view returns(uint256 availableEFG) {
-        return EFGBalance[_address];
-    }
-
-    /**
      * @notice display asset balance
      * @param _symbol asset
      * @param _address beneficiar's address
@@ -732,7 +723,11 @@ contract LendingContract {
         view
         returns(uint256 )
     {
-        return balance[_address][_symbol];
+	if (_symbol != "EFG") {
+	    return balance[_address][_symbol];
+	} else {
+	    return EFGBalance[_address];
+	}
     }
 
     /*
