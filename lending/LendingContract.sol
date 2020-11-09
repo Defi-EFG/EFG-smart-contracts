@@ -841,15 +841,15 @@ contract LendingContract {
     /**
      * @notice returns type and amount of locked assets
      * @param _debtors_addr - debtor's address
-     * @return uint256 - static array of amount of each collateral type , 8 decimals , 100 elements limit
+     * @return uint256[] - dynamic array of amount of each collateral type , 8 decimals , 100 elements limit
      */
-    function getCollateralAmount(address _debtors_addr) external view returns(uint256[100] collateralAmount) {
+    function getCollateralAmount(address _debtors_addr) external view returns(uint256[] collateralAmount) {
         Loan storage l = debt[_debtors_addr];
-
+    uint256[] memory amounts = new uint256[](l.assetSymbol.length);
 	for(uint i = 0; i < l.assetSymbol.length ; i++) {
-	  collateralAmount[i] = l.deposits[l.assetSymbol[i]];
+	  amounts[i] = l.deposits[l.assetSymbol[i]];
 	}
-	return collateralAmount;
+	return amounts;
     }
     /**
      * @notice returns estimated GPT to be used as delay for 7 hours
