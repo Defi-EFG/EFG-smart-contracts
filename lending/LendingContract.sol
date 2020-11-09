@@ -432,7 +432,6 @@ contract LendingContract {
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
-	    p.members.push(msg.sender);
         } else {
 	    /* update interest*/
             l.interest +=
