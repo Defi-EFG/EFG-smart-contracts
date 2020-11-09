@@ -853,7 +853,7 @@ contract LendingContract {
     /**
      * @notice returns estimated GPT to be used as delay for 7 hours
      * @param _debtors_addr - debtor's address
-     * @return uint256 - GPT needed , 4 decimal place
+     * @return uint256 - GPT needed , 8 decimal place
      */
      function getEstimatedGPT(address _debtors_addr) external view returns(uint256 GPTamount) {
          Loan memory l = debt[_debtors_addr];
