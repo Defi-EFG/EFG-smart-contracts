@@ -674,7 +674,7 @@ contract LendingContract {
         uint256 totalDebt;
 	    (totalDebt, )  = getDebt(msg.sender);
         uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
-        require(totalDebt * periodRate / 1e2 > (l.remainingGPT + _gpt_amount *1e4) * GPTRate / 1e6);
+        require(totalDebt * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
 
         if (_gpt_amount != 0) {
             /* deposit GPT  - it will fail if not appoved before */
