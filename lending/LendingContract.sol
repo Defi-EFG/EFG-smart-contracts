@@ -863,8 +863,8 @@ contract LendingContract {
         uint256 totalDebt;
 	    (totalDebt, )  = getDebt(_debtors_addr);
         uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
-        GPTamount = (totalDebt * periodRate * GPTRate) / 1e12; /* 1e2*1e6*(1e8*1e-4) */
-        GPTamount -= l.remainingGPT;
+	GPTamount = (totalDebt * periodRate * GPTRate) / 1e8; /* 1e2*1e6*(1e8*1e-8) */
+	GPTamount -= l.remainingGPT;
         return GPTamount;
      }
 
