@@ -332,7 +332,10 @@ contract LendingContract {
 	
 	if (isNew) {
 	    usersPool[msg.sender] = _pool_addr;
-	    p.members.push(msg.sender);
+	    int index = addressSearch(p.members, msg.sender);
+	    if (index == -1) {
+	        p.members.push(msg.sender);
+	    }
 	    /* Initialize the Loan */
 	    l.poolAddr = _pool_addr;
 	}
@@ -388,7 +391,10 @@ contract LendingContract {
 
 	if (isNew) {
 	    usersPool[msg.sender] = _pool_addr;
-	    p.members.push(msg.sender);
+	    index = addressSearch(p.members, msg.sender);
+	    if (index == -1) {
+	        p.members.push(msg.sender);
+	    }
 	    /* Initialize the Loan */
 	    l.poolAddr = _pool_addr; 
 	}
