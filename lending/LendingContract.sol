@@ -763,8 +763,8 @@ contract LendingContract {
      */
     function listLiquidable(address _pool_addr) external view poolExists(_pool_addr)
       returns(address[] allLiquidable){
-	address[] memory fallenShort;
 	Pool memory p = poolsData[_pool_addr];
+	address[] memory fallenShort = new address[](p.members.length);
 	for (uint i =0; i < p.members.length  ; i++) {
 	    if (canSeize(p.members[i])) {
 		fallenShort[i] = p.members[i];
