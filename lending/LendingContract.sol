@@ -644,18 +644,10 @@ contract LendingContract {
 	  p.collateral[_debtors_addr][l.assetSymbol[i]] = 0;
 	}
     
-        emit  MarginCallEvent(l.poolAddr, _debtors_addr);
+    emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
-	int index;
-	index = addressSearch(p.members, msg.sender);
-	if (index !=-1 ) { /* reduntant check, element must exist anyway */
-	    delete p.members[uint(index)];
-	}
-	delete usersPool[_debtors_addr];
-        /* reset the loan data */
-	delete debt[_debtors_addr];
-	
-        return true;
+	deleteLoan(_debtors_addr);
+    return true;
     }
 
     /**
@@ -985,7 +977,7 @@ contract LendingContract {
 	balance[_debtors_addr]["GPT"] += l.remainingGPT;
 
 	delete debt[_debtors_addr];
-        delete usersPool[_debtors_addr];
+    delete usersPool[_debtors_addr];
 
 	int memberIndex = addressSearch(p.members, _debtors_addr);
 	/* swap with last element and remove */
