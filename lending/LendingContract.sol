@@ -853,7 +853,7 @@ contract LendingContract {
     /**
      * @notice returns estimated GPT to be used as delay for 7 hours
      * @param _debtors_addr - debtor's address
-     * @return uint256 - GPT needed , 8 decimal place
+     * @return uint256 - GPT needed , 4 decimal place
      */
      function getEstimatedGPT(address _debtors_addr) external view returns(uint256 GPTamount) {
          Loan memory l = debt[_debtors_addr];
@@ -863,7 +863,7 @@ contract LendingContract {
         uint256 totalDebt;
 	    (totalDebt, )  = getDebt(_debtors_addr);
         uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
-	GPTamount = (totalDebt * periodRate * GPTRate) / 1e8; /* 1e2*1e6*(1e8*1e-8) */
+	GPTamount = (totalDebt * periodRate * GPTRate) / 1e12; /* 1e2*1e6*(1e4*1e-8) */
 	GPTamount -= l.remainingGPT;
         return GPTamount;
      }
