@@ -429,6 +429,11 @@ contract LendingContract {
         if (firstBorrow) {
 	    l.locked = true;
             l.xrate = USDTRates["EFG"];
+	    /* if this a new loan after a full repay, 
+	     * collateral may exist. Populate the collateralRate array*/
+	    for(uint index=0; index<l.assetSymbol.length; index++) {
+		l.collateralRate.push(collateralRates[l.assetSymbol[index]]);
+	    }
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
@@ -522,10 +527,18 @@ contract LendingContract {
 	    d.EFGamount = 0;
 	    EFGBalance[msg.sender] -= amount;
 	    EFGBalance[d.poolAddr] += amount;
-            emit RepayEvent(true , msg.sender, amount);
+	    balance[msg.sender]["GPT"] += d.remainingGPT;
+	    d.remainingGPT = 0;
+	    emit RepayEvent(true , msg.sender, amount);
 	    
-	    /* unlock the loan */
+	    /* reset and unlockthe loan */
 	    d.locked = false;
+	    d.timestamp = 0;
+	    d.interestRate = 0;
+	    d.xrate = 0;
+	    d.lastGracePeriod = 0;
+	    d.collateralRate.length = 0;
+	    
             return true;
         }
     }
