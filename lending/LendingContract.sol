@@ -196,13 +196,7 @@ contract LendingContract {
      * @param  _EFG_amount - EFG amount to deposit
      * @return a boolean
      */
-    function increaseCapital (uint256 _EFG_amount) external returns(bool result) {
-	/* only pool owner can deposit*/
-	if(addressSearch(pool, msg.sender) == -1) {
-	    emit IncreaseCapitalEvent(false, msg.sender, 0);
-	    return false;
-	}
-
+    function increaseCapital (uint256 _EFG_amount) external poolOwnerOnly() returns(bool result) {
 	/* send the tokens , it will fail if not appoved before */
         result = EFG.transferFrom(msg.sender, address(this), _EFG_amount);
         if (!result) {
@@ -696,6 +690,7 @@ contract LendingContract {
         }
 
         uint256 consumedGPT = (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
+	consumedGPT /= 1e4; /* convert from 8 decimals to 4 */
 	l.remainingGPT -= consumedGPT;
 	balance[owner]["GPT"] += consumedGPT;
         emit ExtendGracePeriodEvent(msg.sender, _gpt_amount);
