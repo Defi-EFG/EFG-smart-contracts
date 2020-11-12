@@ -35,6 +35,7 @@ contract LendingContract {
         bytes32 name;
 	address[] members;
         mapping(address => mapping(bytes8 => uint256)) collateral; /* 8 decimal places */
+	uint256 capital; /* 8 decimal places */
         uint256 remainingEFG; /* 8 decimal places */
     }
     mapping(address => Pool) private poolsData;
@@ -187,6 +188,7 @@ contract LendingContract {
         pool.push(_leader_addr);
         Pool storage p = poolsData[_leader_addr];
         p.name = _name;
+	p.capital = _EFG_amount;
         p.remainingEFG = _EFG_amount;
         return pool.length;
     }
@@ -204,6 +206,7 @@ contract LendingContract {
             return false;
         }
 	Pool storage p = poolsData[msg.sender];
+	p.capital += _EFG_amount;
 	p.remainingEFG += _EFG_amount;
 	emit IncreaseCapitalEvent(true, msg.sender, _EFG_amount);
 
@@ -809,18 +812,20 @@ contract LendingContract {
      * @notice returns pool's information
      * @param _pool_addr - founder's address
      * @return bytes8 - pool name
-     * @return uint256 - remainingEFG
+     * @return uint256 - capital
+     * @return uint256 - remaining EFG
      */
     function getPoolInfo(address _pool_addr)
         external
         view
         returns (
             bytes32 name,
-            uint256 remainingEFG
+            uint256 capital,
+	    uint256 remainingEFG
         )
     {
         Pool memory p = poolsData[_pool_addr];
-        return (p.name, p.remainingEFG);
+        return (p.name, p.capital, p.remainingEFG);
     }
 
     /**
