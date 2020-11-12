@@ -734,9 +734,6 @@ contract LendingContract {
         returns(uint256 assetBalance)
     {
 	if (_symbol != "EFG") {
-	    if (_symbol == "GPT") {
-		return balance[_address][_symbol] / 1e4 ; /* 1e4*1e-8 */
-	    }
 	    return balance[_address][_symbol];
 	} else {
 	    return EFGBalance[_address];
