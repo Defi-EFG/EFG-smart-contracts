@@ -423,11 +423,6 @@ contract LendingContract {
         if (firstBorrow) {
 	    l.locked = true;
             l.xrate = USDTRates["EFG"];
-	    /* if this a new loan after a full repay, 
-	     * collateral may exist. Populate the collateralRate array*/
-	    for(uint index=0; index<l.assetSymbol.length; index++) {
-		l.collateralRate.push(collateralRates[l.assetSymbol[index]]);
-	    }
             l.interestRate = interestRateEFG;
             l.interest = 0;
             l.poolAddr = poolAddr;
@@ -532,6 +527,10 @@ contract LendingContract {
 	    d.xrate = 0;
 	    d.lastGracePeriod = 0;
 	    d.collateralRate.length = 0;
+	    /* Repopulate the collateralRate array*/
+	    for(uint index=0; index<d.assetSymbol.length; index++) {
+		d.collateralRate.push(collateralRates[d.assetSymbol[index]]);
+	    }
 	    
             return true;
         }
