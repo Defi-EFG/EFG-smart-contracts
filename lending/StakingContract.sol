@@ -14,6 +14,7 @@ contract ECRC20 {
 contract StakingContract {
     address owner;
     uint256 mintingRate;
+    address[] minters;
     ECRC20 GPT;
     ECRC20 EFG;
 
@@ -64,7 +65,12 @@ contract StakingContract {
         m.lastClaimed = block.timestamp;
 
         emit MintGPTEvent(true , msg.sender, _amount);
-        return true;
+	
+	int index = addressSearch(minters, msg.sender);
+	if (index == -1) {
+	    minters.push(msg.sender);
+	}
+	return true;
     }
 
     /**
@@ -117,12 +123,22 @@ contract StakingContract {
             emit WithdrawEFGEvent(false, msg.sender, _amount);
             return false;
         }
-        
+
         updateUnclaimedAmount(msg.sender);
         m.lockedAmount -= _amount;
         m.lastClaimed = block.timestamp;
         emit WithdrawEFGEvent(true, _beneficiar, _amount);
-        
+
+	/* full withdrawal, remove from minters array */
+	if(m.lockedAmount == 0) {
+	    int index = addressSearch(minters, msg.sender);
+	    if(minters.length>0) { /* reduntant check */
+		/* swap and 'pop' */
+		minters[uint(index)] = minters[minters.length-1];
+		minters.length--;
+	    }
+	}
+
         return true;
     }
 
@@ -142,6 +158,22 @@ contract StakingContract {
      */
     function unclaimedGPT() public view returns(uint256 contractGPTBalance){
         return GPT.balanceOf(address(this));
+    }
+
+    /**
+     * @notice total EFG
+     * @return uint256 - the amount of EFG in contract
+     */
+    function totalStaking() public view returns(uint256 totalEFGdeposits){
+        return EFG.balanceOf(address(this));
+    }
+
+    /**
+     * @notice return all active minters
+     * @return address[] - array of minter's aaddresses
+     */
+    function getStakers() public view returns(address[] stakers){
+        return minters;
     }
 
     /**
@@ -170,4 +202,22 @@ contract StakingContract {
         
         return stakedAmount;
     }
+
+     /**
+     * @notice search element in array
+     * @param _targetArray - array to be searched
+     * @param _element - what to search
+     * @return int - array index if elemnt exists, else -1
+     */
+    function addressSearch(address[] _targetArray, address _element) internal pure returns (int index) {
+        index = -1;
+        for (uint i = 0; i < _targetArray.length; i++) {
+            if (_targetArray[i] == _element) {
+                index = int(i);
+                break;
+            }
+        }
+        return index;
+    }
+
 }
