@@ -508,19 +508,21 @@ contract LendingContract {
         }
 
         /* repay amount is greater than interest, decrease the loan */
+	Pool storage p = poolsData[d.poolAddr];
         uint256 amountLeft = amount - d.interest;
+	EFGBalance[d.poolAddr] += d.interest;
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
-            d.EFGamount -= amountLeft;
-            EFGBalance[msg.sender] -= amount;
-	    EFGBalance[d.poolAddr] += amount;
-            emit RepayEvent(false , msg.sender, amount);
-            return true;
+              d.EFGamount -= amountLeft;
+              EFGBalance[msg.sender] -= amount;
+	      p.remainingEFG += amountLeft;
+              emit RepayEvent(false , msg.sender, amount);
+              return true;
         } else {
             /* loan repayed in full, release the collateral and GPT */
+	    p.remainingEFG += d.EFGamount;
 	    d.EFGamount = 0;
 	    EFGBalance[msg.sender] -= amount;
-	    EFGBalance[d.poolAddr] += amount;
 	    balance[msg.sender]["GPT"] += d.remainingGPT;
 	    d.remainingGPT = 0;
 	    emit RepayEvent(true , msg.sender, amount);
@@ -536,7 +538,7 @@ contract LendingContract {
 	    for(uint index=0; index<d.assetSymbol.length; index++) {
 		d.collateralRate.push(collateralRates[d.assetSymbol[index]]);
 	    }
-	    
+
             return true;
         }
     }
