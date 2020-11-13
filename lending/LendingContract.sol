@@ -13,6 +13,7 @@ contract ECRC20 {
 
 contract LendingContract {
     address owner;
+    address ownerWallet;
     address[] pool;  /* pool leader addresses */
     ECRC20 EFG;
     ECRC20 GPT;
@@ -81,8 +82,9 @@ contract LendingContract {
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
     event ExtendGracePeriodEvent(address debtors_addr, uint256 amount);
 
-    function LendingContract (address _EFG_addr, address _GPT_addr) public {
+    function LendingContract (address _EFG_addr, address _GPT_addr, address _ownerWallet) public {
         owner = msg.sender;
+	ownerWallet = _ownerWallet;
         EFG = ECRC20(_EFG_addr); /* smart contract address of EFG */
         GPT = ECRC20(_GPT_addr); /* smart contract address of GPT */
 
@@ -568,9 +570,13 @@ contract LendingContract {
 	    require(_amount <= balance[msg.sender]["ECOC"]);
 	    balance[msg.sender]["ECOC"] -= _amount;
 	}
-        _beneficiars_addr.transfer(_amount);
-
-        emit WithdrawECOCEvent(msg.sender, _beneficiars_addr, _amount);
+	if (msg.sender == owner) {
+	    ownerWallet.transfer(_amount);
+	    emit WithdrawECOCEvent(msg.sender, ownerWallet, _amount);
+	} else {
+	    _beneficiars_addr.transfer(_amount);
+	    emit WithdrawECOCEvent(msg.sender, _beneficiars_addr, _amount);
+	}
         return true;
     }
 
@@ -604,8 +610,13 @@ contract LendingContract {
 	
 	    /* send the tokens */
 	    index =  stringSearch(assetName, _symbol);
-	    asset[uint(index)].transfer(_beneficiars_addr, _amount);
-	    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+	    if(msg.sender == owner) {
+		asset[uint(index)].transfer(ownerWallet, _amount);
+		emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
+	    } else {
+		asset[uint(index)].transfer(_beneficiars_addr, _amount);
+		emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+	    }
 	    return true;
 	} else {
 	    /* send the EFG */
@@ -623,8 +634,13 @@ contract LendingContract {
         require(EFGBalance[msg.sender] >= _amount);
         EFGBalance[msg.sender] -= _amount;
         /* send the tokens */
-        EFG.transfer(_beneficiars_addr, _amount);
-        emit WithdrawEFGEvent( _beneficiars_addr, _amount);
+	if(msg.sender == owner){
+	    EFG.transfer(ownerWallet, _amount);
+	    emit WithdrawEFGEvent(ownerWallet, _amount);
+	} else {
+	    EFG.transfer(_beneficiars_addr, _amount);
+	    emit WithdrawEFGEvent( _beneficiars_addr, _amount);
+	}
         return true;
     }
 
