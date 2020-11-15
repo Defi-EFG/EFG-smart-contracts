@@ -785,14 +785,21 @@ contract LendingContract {
      */
     function listLiquidable(address _pool_addr) external view poolExists(_pool_addr)
       returns(address[] allLiquidable){
-	Pool memory p = poolsData[_pool_addr];
-	address[] memory fallenShort = new address[](p.members.length);
-	for (uint i =0; i < p.members.length  ; i++) {
-	    if (canSeize(p.members[i])) {
-		fallenShort[i] = p.members[i];
+	    Pool memory p = poolsData[_pool_addr];
+	    /* determine final length */
+	    uint size = p.members.length ;
+	    for (uint i=0; i < p.members.length  ; i++) {
+	        if (!canSeize(p.members[i])) {
+		  size--;
+		}
 	    }
-	}
-	return fallenShort;
+	    address[] memory fallenShort = new address[](size);
+	    for (i=0; i < p.members.length  ; i++) {
+	        if (canSeize(p.members[i])) {
+		  fallenShort[i] = p.members[i];
+		}
+	    }
+	    return fallenShort;
     }
 
     /**
@@ -882,11 +889,11 @@ contract LendingContract {
         uint256 totalDebt;
 	    (totalDebt, )  = getDebt(_debtors_addr);
         uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
-	GPTamount = (totalDebt * periodRate * GPTRate) / 1e12; /* 1e2*1e6*(1e4*1e-8) */
+	GPTamount = (totalDebt * periodRate * GPTRate) / 1e12; /* 1e-6*1e-2*(1e4*1e-8) */
     if (l.remainingGPT > GPTamount ) {
             return 0;
         }
-	GPTamount -= l.remainingGPT;
+	    GPTamount -= l.remainingGPT;
         return GPTamount;
      }
 
