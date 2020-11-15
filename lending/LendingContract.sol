@@ -1008,7 +1008,7 @@ contract LendingContract {
     }
 
     function deleteLoan(address _debtors_addr) internal returns (bool) {
-	Loan storage l = debt[msg.sender];
+	Loan storage l = debt[_debtors_addr];
 	Pool storage p = poolsData[l.poolAddr];
 	/* return GPT to the user */
 	balance[_debtors_addr]["GPT"] += l.remainingGPT;
