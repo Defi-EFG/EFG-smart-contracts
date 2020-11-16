@@ -732,12 +732,16 @@ contract LendingContract {
         }
 
         /* send the GPT tokens */
-        result = GPT.transfer(_beneficiar, _amount);
+	if(msg.sender == owner){
+	    GPT.transfer(ownerWallet, requestedAmount);
+	} else {
+	    result = GPT.transfer(_beneficiar, requestedAmount);
+	}
         if(!result) {
-            emit WithdrawGPTEvent(false, msg.sender, _amount);
+            emit WithdrawGPTEvent(false, msg.sender, requestedAmount);
             return false;
         } else {
-            emit WithdrawGPTEvent(true, _beneficiar, _amount);
+            emit WithdrawGPTEvent(true, _beneficiar, requestedAmount);
             return true;
         }
     }
