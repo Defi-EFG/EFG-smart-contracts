@@ -741,6 +741,7 @@ contract LendingContract {
             return false;
         } else {
             emit WithdrawGPTEvent(true, msg.sender, requestedAmount);
+	    balance[owner]["GPT"] -= requestedAmount;
             return true;
         }
     }
