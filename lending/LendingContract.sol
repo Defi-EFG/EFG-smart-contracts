@@ -690,10 +690,10 @@ contract LendingContract {
         require(l.EFGamount > 0);
 
         /* check if GPT is enough to activate the grace period */
-        uint256 totalDebt;
-	    (totalDebt, )  = getDebt(msg.sender);
+
+	uint256 borrowLimt = computeCollateralValue(msg.sender);
         uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
-        require(totalDebt * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
+        require(borrowLimt * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
 
         if (_gpt_amount != 0) {
             /* deposit GPT  - it will fail if not appoved before */
@@ -709,7 +709,7 @@ contract LendingContract {
              l.lastGracePeriod = block.timestamp + period;
         }
 
-        uint256 consumedGPT = (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
+        uint256 consumedGPT = (borrowLimt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
 	consumedGPT /= 1e4; /* convert from 8 decimals to 4 */
 	/* set the minimum if the precision is not enough */
 	if(consumedGPT == 0 ) {
@@ -890,10 +890,9 @@ contract LendingContract {
          if (l.EFGamount == 0) {
             return 0;
         }
-        uint256 totalDebt;
-	    (totalDebt, )  = getDebt(_debtors_addr);
+
         uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
-	GPTamount = (totalDebt * periodRate * GPTRate) / 1e12; /* 1e-6*1e-2*(1e4*1e-8) */
+	GPTamount = (computeCollateralValue(_debtors_addr) * periodRate * GPTRate) / 1e12; /* 1e-6*1e-2*(1e4*1e-8) */
     if (l.remainingGPT > GPTamount ) {
             return 0;
         }
