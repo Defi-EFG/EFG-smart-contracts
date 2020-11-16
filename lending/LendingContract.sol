@@ -619,13 +619,23 @@ contract LendingContract {
 	    }
 	
 	    /* send the tokens */
-	    index =  stringSearch(assetName, _symbol);
-	    if(msg.sender == owner) {
-		asset[uint(index)].transfer(ownerWallet, _amount);
-		emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
+	    if(_symbol != "GPT") {
+		index =  stringSearch(assetName, _symbol);
+		if(msg.sender == owner) {
+		    asset[uint(index)].transfer(ownerWallet, _amount);
+		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
+		} else {
+		    asset[uint(index)].transfer(_beneficiars_addr, _amount);
+		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+		}
 	    } else {
-		asset[uint(index)].transfer(_beneficiars_addr, _amount);
-		emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+		if(msg.sender == owner) {
+		    GPT.transfer(ownerWallet, _amount);
+		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
+		} else {
+		    GPT.transfer(_beneficiars_addr, _amount);
+		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+		}
 	    }
 	    return true;
 	} else {
