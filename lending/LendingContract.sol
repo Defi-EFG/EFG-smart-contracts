@@ -591,10 +591,11 @@ contract LendingContract {
      */
     function withdrawAsset(bytes8 _symbol, uint256 _amount, address _beneficiars_addr) external returns(bool result) {
         require(_amount > 0);
+
 	if (_symbol != "EFG") {
 	    Loan storage l = debt[msg.sender];
 	    int index = stringSearch(l.assetSymbol, _symbol);
-	    if (!l.locked && (index != -1)) {
+	    if (!l.locked && (index != -1) && (_symbol != "GPT")) {
 		/* the caller is a common user */
 		require(_amount <= l.deposits[_symbol]);
 		l.deposits[_symbol] -= _amount;
@@ -605,7 +606,7 @@ contract LendingContract {
 		    deleteLoan(msg.sender);
 		}
 	    }  else {
-		/* for owner and pool leaders */
+		/* for GPT, owner and pool leaders */
 		require(_amount <= balance[msg.sender][_symbol]);
 		balance[msg.sender][_symbol] -= _amount;
 	    }
@@ -967,6 +968,7 @@ contract LendingContract {
 	}
         return (maxBorrowing - totalDebt);
     }
+
     /**
      * @notice compute borrowing limit , same as computeCollateralValue()
      * @param _depositors_addr - address of the depositor
