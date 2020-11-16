@@ -32,6 +32,11 @@ contract LendingContract {
     mapping(address => mapping(bytes8 => uint256)) private balance; /* 8 decimal places for ECOC and all ECRC20 tokens */
     mapping(address => uint256) private EFGBalance; /* 8 decimal places */
 
+    /* statistics */
+    uint256 totalInterestAmount = 0;
+    uint256 totalLiqudatedEFGEq = 0;
+    uint256 totalConsumedGPT = 0;
+    
     struct Pool {
         bytes32 name;
 	address[] members;
@@ -501,6 +506,7 @@ contract LendingContract {
         if (amount <= d.interest) {
             /* repay the interest first */
             d.interest -= amount;
+	    totalInterestAmount += amount;
             EFGBalance[msg.sender] -= amount;
 	    EFGBalance[d.poolAddr] += amount;
             emit RepayEvent(false , msg.sender, amount);
@@ -510,6 +516,7 @@ contract LendingContract {
         /* repay amount is greater than interest, decrease the loan */
 	Pool storage p = poolsData[d.poolAddr];
         uint256 amountLeft = amount - d.interest;
+	EFGBalance[d.poolAddr] += d.interest;
 	EFGBalance[d.poolAddr] += d.interest;
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
@@ -674,6 +681,7 @@ contract LendingContract {
     
     emit  MarginCallEvent(l.poolAddr, _debtors_addr);
 
+    totalLiqudatedEFGEq += l.EFGamount;
 	deleteLoan(_debtors_addr);
     return true;
     }
@@ -718,6 +726,7 @@ contract LendingContract {
 	}
 	l.remainingGPT -= consumedGPT;
 	balance[owner]["GPT"] += consumedGPT;
+	totalConsumedGPT += consumedGPT;
         emit ExtendGracePeriodEvent(msg.sender, _gpt_amount);
 
        return true;
@@ -995,6 +1004,30 @@ contract LendingContract {
         return index;
     }
 
+    /**
+     * @notice  returns total interest for leaders, for information purposes only
+     * @return uint - total consumed GPT so farinterest in EFG
+     */
+    function getTotalInterest() external view returns(uint totalInterest) {
+	return totalInterestAmount;
+    }
+
+    /**
+     * @notice  returns total unpaid EFG, for information purposes only
+     * @return uint - total unpaid EFG because of liquidation
+     */
+    function getTotalLiquidated() external view returns(uint totalLiquidated) {
+	return totalLiqudatedEFGEq;
+    }
+
+    /**
+     * @notice returns total used GPT, for information purposes only
+     * @return uint - total consumed GPT so far
+     */
+    function getTotalConsumedGPT() external view returns(uint totalGPT) {
+	return totalConsumedGPT;
+    }
+    
     /**
      * @notice search element in array
      * @param _targetArray - array to be searched
