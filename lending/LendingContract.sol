@@ -711,6 +711,10 @@ contract LendingContract {
 
         uint256 consumedGPT = (totalDebt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
 	consumedGPT /= 1e4; /* convert from 8 decimals to 4 */
+	/* set the minimum if the precision is not enough */
+	if(consumedGPT == 0 ) {
+	    consumedGPT = 1; /* minimum GPT that can exist, 1e-4*/
+	}
 	l.remainingGPT -= consumedGPT;
 	balance[owner]["GPT"] += consumedGPT;
         emit ExtendGracePeriodEvent(msg.sender, _gpt_amount);
