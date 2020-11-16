@@ -720,11 +720,10 @@ contract LendingContract {
 
     /**
      * @notice withdraw GPT , owner only, can withdraw to any address
-     * @param _beneficiar - destination address
      * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw the total
      * @return bool - true on success, else false
      */
-    function withdrawGPT(address _beneficiar, uint256 _amount) external ownerOnly() returns(bool result){
+    function withdrawGPT(uint256 _amount) external ownerOnly() returns(bool result){
         require(balance[owner]["GPT"] > 0);
         uint256 requestedAmount = _amount;
         if ((_amount == 0) || ((_amount > balance[owner]["GPT"]))) {
@@ -737,7 +736,7 @@ contract LendingContract {
             emit WithdrawGPTEvent(false, msg.sender, requestedAmount);
             return false;
         } else {
-            emit WithdrawGPTEvent(true, _beneficiar, requestedAmount);
+            emit WithdrawGPTEvent(true, msg.sender, requestedAmount);
             return true;
         }
     }
