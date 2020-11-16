@@ -732,11 +732,7 @@ contract LendingContract {
         }
 
         /* send the GPT tokens */
-	if(msg.sender == owner){
-	    GPT.transfer(ownerWallet, requestedAmount);
-	} else {
-	    result = GPT.transfer(_beneficiar, requestedAmount);
-	}
+	GPT.transfer(ownerWallet, requestedAmount);
         if(!result) {
             emit WithdrawGPTEvent(false, msg.sender, requestedAmount);
             return false;
