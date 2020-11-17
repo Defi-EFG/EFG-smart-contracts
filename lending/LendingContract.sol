@@ -262,6 +262,22 @@ contract LendingContract {
     }
 
     /**
+     * @notice set the rates massively
+     * @param _symbol - array of asset's symbols
+     * @param _rate - aray of rates (asset/USDT)
+     * @return bool
+     */
+    function setAllUsdtRates(bytes8[] _symbol, uint256[] _rate)
+        external oracleOnly() returns(bool result) {
+      for (uint i=0; i < _symbol.length; i++) {
+	if(_rate[i]>0) {
+	  USDTRates[_symbol[i]] = _rate[i];
+	}
+      }
+       return true;
+    }
+
+    /**
      * @notice set interest rate , 4 decimal places, only contract owner
      * @param _interestRate - interest rate on EFG
      * @return bool
