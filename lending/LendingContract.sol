@@ -206,6 +206,7 @@ contract LendingContract {
      * @return a boolean
      */
     function increaseCapital (uint256 _EFG_amount) external poolOwnerOnly() returns(bool result) {
+	require(_EFG_amount > 0);
 	/* send the tokens , it will fail if not appoved before */
         result = EFG.transferFrom(msg.sender, address(this), _EFG_amount);
         if (!result) {
@@ -607,7 +608,7 @@ contract LendingContract {
 		require(_amount <= l.deposits[_symbol]);
 		l.deposits[_symbol] -= _amount;
 		Pool storage p = poolsData[l.poolAddr];
-		p.collateral[msg.sender][_symbol] -= l.deposits[_symbol];
+		p.collateral[msg.sender][_symbol] -= _amount;
 		/* if all collateral were withdrawn then delete the loan */
 		if (computeCollateralValue(msg.sender) == 0) {
 		    deleteLoan(msg.sender);
@@ -621,6 +622,7 @@ contract LendingContract {
 	    /* send the tokens */
 	    if(_symbol != "GPT") {
 		index =  stringSearch(assetName, _symbol);
+		assert(index != -1); /* should never happen */
 		if(msg.sender == owner) {
 		    asset[uint(index)].transfer(ownerWallet, _amount);
 		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
@@ -709,9 +711,9 @@ contract LendingContract {
         require(l.EFGamount > 0);
 
         /* check if GPT is enough to activate the grace period */
-
 	uint256 borrowLimt = computeCollateralValue(msg.sender);
         uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
+	require(l.remainingGPT + _gpt_amount > 0);
         require(borrowLimt * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
 
         if (_gpt_amount != 0) {
@@ -755,7 +757,7 @@ contract LendingContract {
         }
 
         /* send the GPT tokens */
-	GPT.transfer(ownerWallet, requestedAmount);
+	result = GPT.transfer(ownerWallet, requestedAmount);
         if(!result) {
             emit WithdrawGPTEvent(false, msg.sender, requestedAmount);
             return false;
@@ -808,15 +810,17 @@ contract LendingContract {
      * @return address[] - array of all members in the pooladdresses of debtors that fallen short
      */
     function listLiquidable(address _pool_addr) external view poolExists(_pool_addr)
-      returns(address[] allLiquidable){
-	    Pool memory p = poolsData[_pool_addr];
+	returns(address[] allLiquidable){
+	    Pool storage p = poolsData[_pool_addr];
 	    /* determine final length */
+	    
 	    uint size = p.members.length ;
 	    for (uint i=0; i < p.members.length  ; i++) {
 	        if (!canSeize(p.members[i])) {
 		  size--;
 		}
 	    }
+	    
 	    address[] memory fallenShort = new address[](size);
 	    for (i=0; i < p.members.length  ; i++) {
 	        if (canSeize(p.members[i])) {
