@@ -518,7 +518,7 @@ contract LendingContract {
 	Pool storage p = poolsData[d.poolAddr];
         uint256 amountLeft = amount - d.interest;
 	EFGBalance[d.poolAddr] += d.interest;
-	EFGBalance[d.poolAddr] += d.interest;
+	totalInterestAmount += d.interest;
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
               d.EFGamount -= amountLeft;
