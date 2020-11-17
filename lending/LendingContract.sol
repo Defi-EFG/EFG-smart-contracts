@@ -807,22 +807,22 @@ contract LendingContract {
     /**
      * @notice list all liquidable loans for a pool
      * @param _pool_addr - pool address
+     * @param _start  - start searching of this index in member's pool
+     * @param _offset - how many members to search. If 0, then search the whole members of the pool
      * @return address[] - array of all members in the pooladdresses of debtors that fallen short
      */
-    function listLiquidable(address _pool_addr) external view poolExists(_pool_addr)
-	returns(address[] allLiquidable){
+    function listLiquidable(address _pool_addr, uint _start, uint _offset) external view poolExists(_pool_addr)
+	returns(address[] liquidable){
 	    Pool storage p = poolsData[_pool_addr];
-	    /* determine final length */
-	    
-	    uint size = p.members.length ;
-	    for (uint i=0; i < p.members.length  ; i++) {
-	        if (!canSeize(p.members[i])) {
-		  size--;
-		}
+	    uint start = _start;
+	    uint offset = _offset;
+	    if (_offset == 0) {
+		start = 0;
+		offset = p.members.length;
 	    }
-	    
-	    address[] memory fallenShort = new address[](size);
-	    for (i=0; i < p.members.length  ; i++) {
+
+	    address[] memory fallenShort = new address[](offset);
+	    for (uint i=start; i < offset  ; i++) {
 	        if (canSeize(p.members[i])) {
 		  fallenShort[i] = p.members[i];
 		}
