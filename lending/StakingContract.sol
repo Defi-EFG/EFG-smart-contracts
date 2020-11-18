@@ -12,7 +12,6 @@ contract ECRC20 {
 }
 
 contract StakingContract {
-    address owner;
     uint256 mintingRate;
     address[] minters;
     ECRC20 GPT;
