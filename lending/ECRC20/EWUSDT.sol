@@ -29,9 +29,8 @@ contract EWUSDT is IEWRC20 {
         _name = "wrapped USDT for ecochain";
         _symbol = "EWUSDT";
         _decimals = 8;
-        _totalSupply = 0;
-	_balances[msg.sender] = 1e12; /* for testnet, start with 10,000 EWUSDT */
-        //_balances[msg.sender] = _totalSupply;
+        _totalSupply = 1e12;
+	_balances[msg.sender] = _totalSupply; /* for testnet, start with 10,000 EWUSDT */
     }
 
     /**

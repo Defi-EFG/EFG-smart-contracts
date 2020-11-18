@@ -387,7 +387,7 @@ contract LendingContract {
         require(_amount > 0);
         int index = stringSearch(assetName, _symbol);
         /* check if asset is acceptable */
-        if ( index ==-1) {
+        if (index == -1) {
                 return false;
         }
         /* check if the loan is unlocked */
@@ -833,12 +833,15 @@ contract LendingContract {
 	    uint start = _start;
 	    uint offset = _offset;
 	    if (_offset == 0) {
-		start = 0;
 		offset = p.members.length;
 	    }
 
 	    address[] memory fallenShort = new address[](offset);
-	    for (uint i=start; i < offset  ; i++) {
+	    uint length = start + offset;
+	    if (length > p.members.length) {
+		length = p.members.length;
+	    }
+	    for (uint i=start; i < length  ; i++) {
 	        if (canSeize(p.members[i])) {
 		  fallenShort[i] = p.members[i];
 		}

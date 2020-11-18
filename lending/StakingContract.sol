@@ -26,7 +26,7 @@ contract StakingContract {
     struct Minting {
         uint256 lockedAmount; /* EFG, 8 decimales*/
         uint256 lastClaimed ; /* timestamp */
-        uint256 unclaimedAmount; /* 16 decimals */
+        uint256 unclaimedAmount; /* 4 decimals */
     }
     mapping(address => Minting) private locked;
 
@@ -190,14 +190,14 @@ contract StakingContract {
      * @param _period -
      * @param _rate -
      * @param _staked -
-     * return uint256 - the amount of unclaimed GPT
+     * return uint256 - the amount of unclaimed GPT , 4 digits
      */
 
     function computeUnclaimedAmount(uint _period, uint _rate, uint _staked) internal pure returns(uint256) {
         uint256 stakedAmount;
         
         stakedAmount = _period * _rate * _staked;
-        stakedAmount /= 1e16; /* staking rate is in e-16 */
+        stakedAmount /= 1e16; /* convert to 4 digits */
         
         return stakedAmount;
     }

@@ -29,9 +29,8 @@ contract EWETH is IEWRC20 {
         _name = "wrapped ETH for ecochain";
         _symbol = "EWETH";
         _decimals = 8;
-        _totalSupply = 0;
-	_balances[msg.sender] = 1e11; /* for testnet, start with 1000 EWETH */
-        //_balances[msg.sender] = _totalSupply;
+        _totalSupply = 1e11;
+	_balances[msg.sender] = _totalSupply; /* for testnet, start with 1000 EWETH */
     }
 
     /**
