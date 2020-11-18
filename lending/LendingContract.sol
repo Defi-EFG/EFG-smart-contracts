@@ -836,11 +836,11 @@ contract LendingContract {
 		offset = p.members.length;
 	    }
 
-	    address[] memory fallenShort = new address[](offset);
 	    uint length = start + offset;
 	    if (length > p.members.length) {
 		length = p.members.length;
 	    }
+	    address[] memory fallenShort = new address[](length);
 	    for (uint i=start; i < length  ; i++) {
 	        if (canSeize(p.members[i])) {
 		  fallenShort[i] = p.members[i];
