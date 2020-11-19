@@ -593,9 +593,11 @@ contract LendingContract {
 	    balance[msg.sender]["ECOC"] -= _amount;
 	}
 	if (msg.sender == owner) {
+	    /* transfer throws on failure */
 	    ownerWallet.transfer(_amount);
 	    emit WithdrawECOCEvent(msg.sender, ownerWallet, _amount);
 	} else {
+	    /* transfer throws on failure */
 	    _beneficiars_addr.transfer(_amount);
 	    emit WithdrawECOCEvent(msg.sender, _beneficiars_addr, _amount);
 	}
@@ -636,18 +638,18 @@ contract LendingContract {
 		index =  stringSearch(assetName, _symbol);
 		assert(index != -1); /* should never happen */
 		if(msg.sender == owner) {
-		    asset[uint(index)].transfer(ownerWallet, _amount);
+		    require(asset[uint(index)].transfer(ownerWallet, _amount));
 		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
 		} else {
-		    asset[uint(index)].transfer(_beneficiars_addr, _amount);
+		    require(asset[uint(index)].transfer(_beneficiars_addr, _amount));
 		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
 		}
 	    } else {
 		if(msg.sender == owner) {
-		    GPT.transfer(ownerWallet, _amount);
+		    require(GPT.transfer(ownerWallet, _amount));
 		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
 		} else {
-		    GPT.transfer(_beneficiars_addr, _amount);
+		    require(GPT.transfer(_beneficiars_addr, _amount));
 		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
 		}
 	    }
@@ -669,10 +671,10 @@ contract LendingContract {
         EFGBalance[msg.sender] -= _amount;
         /* send the tokens */
 	if(msg.sender == owner){
-	    EFG.transfer(ownerWallet, _amount);
+	    require(EFG.transfer(ownerWallet, _amount));
 	    emit WithdrawEFGEvent(ownerWallet, _amount);
 	} else {
-	    EFG.transfer(_beneficiars_addr, _amount);
+	    require(EFG.transfer(_beneficiars_addr, _amount));
 	    emit WithdrawEFGEvent( _beneficiars_addr, _amount);
 	}
         return true;
