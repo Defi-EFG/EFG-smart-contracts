@@ -439,7 +439,7 @@ contract LendingContract {
         address poolAddr = usersPool[msg.sender];
 	    /* necessary checks */
 	    require(!(addressSearch(pool, poolAddr) == -1 ));
-	    require(_amount <= computeBorrowingPower(msg.sender));
+	    require(_amount < computeBorrowingPower(msg.sender));
         Pool storage p = poolsData[poolAddr];
 	    require(_amount <= p.remainingEFG);
         
@@ -497,6 +497,7 @@ contract LendingContract {
      */
     function repay(uint256 _amount) external returns (bool result) {
         require(_amount > 0);
+	require(d.EFGamount !=0);
 	Loan storage d = debt[msg.sender];
 	uint256 maxEFG = d.EFGamount + d.interest + (d.EFGamount * ((block.timestamp - d.timestamp)
 			* d.interestRate)) / (secsInDay * 1e4);
@@ -513,9 +514,6 @@ contract LendingContract {
             emit DepositAssetEvent(false, "EFG", msg.sender, amount);
             return false;
         }
-	EFGBalance[msg.sender] += amount;
-
-	require(d.EFGamount !=0 );
 
 	/* update interest first */
             d.interest += (d.EFGamount * ((block.timestamp - d.timestamp)
@@ -525,7 +523,6 @@ contract LendingContract {
             /* repay the interest first */
             d.interest -= amount;
 	    totalInterestAmount += amount;
-            EFGBalance[msg.sender] -= amount;
 	    EFGBalance[d.poolAddr] += amount;
             emit RepayEvent(false , msg.sender, amount);
             return true;
@@ -539,7 +536,6 @@ contract LendingContract {
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
               d.EFGamount -= amountLeft;
-              EFGBalance[msg.sender] -= amount;
 	      p.remainingEFG += amountLeft;
               emit RepayEvent(false , msg.sender, amount);
               return true;
@@ -547,12 +543,11 @@ contract LendingContract {
             /* loan repayed in full, release the collateral and GPT */
 	    p.remainingEFG += d.EFGamount;
 	    d.EFGamount = 0;
-	    EFGBalance[msg.sender] -= amount;
 	    balance[msg.sender]["GPT"] += d.remainingGPT;
 	    d.remainingGPT = 0;
 	    emit RepayEvent(true , msg.sender, amount);
 	    
-	    /* reset and unlockthe loan */
+	    /* reset and unlock the loan */
 	    d.locked = false;
 	    d.timestamp = 0;
 	    d.interestRate = 0;
