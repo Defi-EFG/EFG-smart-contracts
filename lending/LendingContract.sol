@@ -703,6 +703,7 @@ contract LendingContract {
 	  balance[owner][l.assetSymbol[i]] +=  ((1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
 	  /* also, remove the asssets from the pool */
 	  p.collateral[_debtors_addr][l.assetSymbol[i]] = 0;
+	  l.deposits[l.assetSymbol[i]] = 0;
 	}
     
     emit  MarginCallEvent(l.poolAddr, _debtors_addr);
@@ -722,12 +723,19 @@ contract LendingContract {
         /* check if debt exists*/
         Loan storage l = debt[msg.sender];
         require(l.EFGamount > 0);
-
+	
         /* check if GPT is enough to activate the grace period */
-	uint256 borrowLimt = computeCollateralValue(msg.sender);
-        uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
+	uint256 protectedValue = computeCollateralValue(msg.sender);
+	uint256 totalDebt;
+	(totalDebt,) = getDebt(msg.sender);
+	/* in case of non triggered margin call */
+	if (protectedValue < totalDebt) {
+	    protectedValue = totalDebt;
+	}
+	uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
+	
 	require(l.remainingGPT + _gpt_amount > 0);
-        require(borrowLimt * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
+        require(protectedValue * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
 
         if (_gpt_amount != 0) {
             /* deposit GPT  - it will fail if not appoved before */
@@ -743,7 +751,7 @@ contract LendingContract {
              l.lastGracePeriod = block.timestamp + period;
         }
 
-        uint256 consumedGPT = (borrowLimt * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
+        uint256 consumedGPT = (protectedValue * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
 	consumedGPT /= 1e4; /* convert from 8 decimals to 4 */
 	/* set the minimum if the precision is not enough */
 	if(consumedGPT == 0 ) {
@@ -933,7 +941,14 @@ contract LendingContract {
         }
 
         uint256 GPTRate = computeEFGRate(USDTRates["EFG"], USDTRates["GPT"]);
-	GPTamount = (computeCollateralValue(_debtors_addr) * periodRate * GPTRate) / 1e12; /* 1e-6*1e-2*(1e4*1e-8) */
+	uint256 protectedValue = computeCollateralValue(_debtors_addr);
+	/* check if there is no margin call on time */
+	uint256 totalDebt;
+	(totalDebt,) = getDebt(_debtors_addr);
+	if (protectedValue < totalDebt) {
+	    protectedValue = totalDebt;
+	}
+	GPTamount = (protectedValue * periodRate * GPTRate) / 1e12; /* 1e-6*1e-2*(1e4*1e-8) */
     if (l.remainingGPT > GPTamount ) {
             return 0;
         }
