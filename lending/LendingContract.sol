@@ -52,7 +52,7 @@ contract LendingContract {
         mapping(bytes8 => uint256) deposits; /* deposited collateral for this loan */
         uint256 EFGamount; /* amount in EFG , 8 digits */
         uint256 timestamp; /* timestamp of last update (creation or partial repay) */
-        uint256 interestRate; /* Initial interast rate (depends on asset), 6 digits */
+        uint256 interestRate; /* Initial interest rate (depends on asset), 6 digits */
         uint256[] collateralRate; /* Initial collateral rate of assets , 4 digits */
         uint256 xrate; /* Initial exchange rate EFG/assetSymbol , 6 digits */
         uint256 interest; /* accumilated interest , 8 digits */
@@ -87,7 +87,7 @@ contract LendingContract {
     event RepayEvent(bool fullyRepaid, address debtors_addr, uint256 amount);
     event ExtendGracePeriodEvent(address debtors_addr, uint256 amount);
 
-    function LendingContract (address _EFG_addr, address _GPT_addr, address _ownerWallet) public {
+    function LendingContract(address _EFG_addr, address _GPT_addr, address _ownerWallet) public {
         owner = msg.sender;
 	ownerWallet = _ownerWallet;
         EFG = ECRC20(_EFG_addr); /* smart contract address of EFG */
@@ -160,7 +160,7 @@ contract LendingContract {
         ownerOnly()
         returns(uint256 numberOfAssets)
     {
-    require (_collateral_rate>0 && _collateral_rate < 1e4);
+    require (_collateral_rate >0 && _collateral_rate < 1e4);
 	int index = addressSearch(assetAddress, _contract_addr);
 	if (index == -1) {
 	    /* new asset */
@@ -170,7 +170,7 @@ contract LendingContract {
 	    asset.push(newToken);
 	    collateralRates[_symbol] = _collateral_rate;
         } else {
-	        /* asset exists, just update the symbol */
+	        /* asset exists, just update the symbol and rate */
 	        assetName[uint(index)] = _symbol;
 	        collateralRates[_symbol] = _collateral_rate;
         }
@@ -205,7 +205,7 @@ contract LendingContract {
      * @param  _EFG_amount - EFG amount to deposit
      * @return a boolean
      */
-    function increaseCapital (uint256 _EFG_amount) external poolOwnerOnly() returns(bool result) {
+    function increaseCapital(uint256 _EFG_amount) external poolOwnerOnly() returns(bool result) {
 	require(_EFG_amount > 0);
 	/* send the tokens , it will fail if not appoved before */
         result = EFG.transferFrom(msg.sender, address(this), _EFG_amount);
@@ -419,7 +419,7 @@ contract LendingContract {
 	    /* Initialize the Loan */
 	    l.poolAddr = _pool_addr; 
 	}
-	/* check if it is first deposit of this asset */
+	/* check if this is the first deposit of this asset */
 	if(stringSearch(l.assetSymbol, _symbol)==-1) {
 	    l.assetSymbol.push(_symbol);
 	    l.collateralRate.push(collateralRates[_symbol]);
@@ -451,7 +451,6 @@ contract LendingContract {
 	    l.locked = true;
             l.xrate = USDTRates["EFG"];
             l.interestRate = interestRateEFG;
-            l.interest = 0;
             l.poolAddr = poolAddr;
         } else {
 	    /* update interest*/
@@ -462,12 +461,14 @@ contract LendingContract {
         }
         l.timestamp = block.timestamp;
         l.EFGamount += _amount;
+	/* security underflow check: check again before substraction */
+	assert(p.remainingEFG >= _amount );
         p.remainingEFG -= _amount;
-
+	
         emit BorrowEvent(firstBorrow, poolAddr, msg.sender, _amount);
 
-	    /* also withdraw that amount */
-        EFG.transfer(msg.sender, _amount);
+	/* also withdraw that amount */
+        require(EFG.transfer(msg.sender, _amount));
         emit WithdrawEFGEvent(msg.sender, _amount);
 
         return _amount;
