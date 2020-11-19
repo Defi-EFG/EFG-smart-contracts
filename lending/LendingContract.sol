@@ -48,6 +48,7 @@ contract LendingContract {
 
     struct Loan {
         bool locked; /* while locked, the loan is in use. Debtor can't add or withdraw any collateral */
+	bool protectionUsed; /* if grace period already used once */
         bytes8[] assetSymbol; /* can be ECOC or any ECRC20 */
         mapping(bytes8 => uint256) deposits; /* deposited collateral for this loan */
         uint256 EFGamount; /* amount in EFG , 8 digits */
@@ -385,13 +386,17 @@ contract LendingContract {
         returns(bool result)
     {
         require(_amount > 0);
+	Loan storage l = debt[msg.sender];
+	if (_symbol=="GPT") {
+	    require(l.poolAddr != address(0x0));
+	    return depositGPT(_amount);
+	}
         int index = stringSearch(assetName, _symbol);
         /* check if asset is acceptable */
         if (index == -1) {
                 return false;
         }
         /* check if the loan is unlocked */
-        Loan storage l = debt[msg.sender];
         require(!l.locked);
 	bool isNew = (l.poolAddr == address(0x0));
 	/* forbid the deposit if an active loan already exists in another pool */
@@ -428,6 +433,23 @@ contract LendingContract {
 	
         emit DepositAssetEvent(true, _symbol, msg.sender, _amount);
         return true;
+    }
+
+     /**
+     * @notice deposi GPT
+     * @param _amount - amount of ECRC tokens
+     * @return bool
+     */
+    function depositGPT(uint256 _amount) internal returns (bool result) {
+	Loan storage l = debt[msg.sender];
+        result = GPT.transferFrom(msg.sender, address(this), _amount);
+        if (!result) {
+            emit DepositAssetEvent(false, "GPT", msg.sender, _amount);
+            return false;
+        }
+	emit DepositAssetEvent(true, "GPT", msg.sender, _amount);
+	l.remainingGPT += _amount;
+	return true;
     }
 
     /**
@@ -549,6 +571,7 @@ contract LendingContract {
 	    
 	    /* reset and unlock the loan */
 	    d.locked = false;
+	    d.protectionUsed = false;
 	    d.timestamp = 0;
 	    d.interestRate = 0;
 	    d.xrate = 0;
@@ -690,6 +713,8 @@ contract LendingContract {
         returns(bool result)
     {
 	require(canSeize(_debtors_addr));
+	/* auto trigger grace period if possible */
+	require(!extendGracePeriod());
         Loan storage l = debt[_debtors_addr];
 	/* check if the caller is the pool leader or the contract owner */
         require((msg.sender == l.poolAddr) || (msg.sender == owner));
@@ -714,15 +739,16 @@ contract LendingContract {
     }
 
     /**
-     * @notice deposit GPT to extend Grace Period
-     * @param _gpt_amount - amount of GPT to consume (4 decimals)
-     * If zero , still can trigget the protection if enough GPT left from the previosu use
+     * @notice extend Grace Period if possible
      * @return bool - true on success, else false
      */
-    function extendGracePeriod(uint256 _gpt_amount) external returns(bool result) {
+    function extendGracePeriod() internal returns(bool result) {
         /* check if debt exists*/
         Loan storage l = debt[msg.sender];
-        require(l.EFGamount > 0);
+	/* each loan has right for a single grace period only */
+	if (l.protectionUsed == true) {
+	    return false;
+	}
 	
         /* check if GPT is enough to activate the grace period */
 	uint256 protectedValue = computeCollateralValue(msg.sender);
@@ -732,36 +758,32 @@ contract LendingContract {
 	if (protectedValue < totalDebt) {
 	    protectedValue = totalDebt;
 	}
-	uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
 	
-	require(l.remainingGPT + _gpt_amount > 0);
-        require(protectedValue * periodRate / 1e2 <= (l.remainingGPT + _gpt_amount) *1e4 * GPTRate / 1e6);
+	if (l.remainingGPT == 0) {
+	    return false;
+	}
+	uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
+        if (protectedValue * periodRate / 1e2 > l.remainingGPT *1e4 * GPTRate / 1e6){
+	    return false;
+	}
 
-        if (_gpt_amount != 0) {
-            /* deposit GPT  - it will fail if not appoved before */
-            require(GPT.transferFrom(msg.sender, address(this), _gpt_amount));
-            l.remainingGPT += _gpt_amount;
-        }
-
-	 /* trigger the protection and update loan data*/
-        uint256 period = secsIn7Hours;
-        if (l.lastGracePeriod > block.timestamp) {
-            l.lastGracePeriod += period;
-        } else {
-             l.lastGracePeriod = block.timestamp + period;
-        }
-
+	/* trigger the protection and update loan data*/
         uint256 consumedGPT = (protectedValue * periodRate * 1e4) / GPTRate; /* 1e6 * 1e-2 */
 	consumedGPT /= 1e4; /* convert from 8 decimals to 4 */
 	/* set the minimum if the precision is not enough */
 	if(consumedGPT == 0 ) {
 	    consumedGPT = 1; /* minimum GPT that can exist, 1e-4*/
 	}
-	assert(l.remainingGPT >= consumedGPT); /* should never happen */
+	if (l.remainingGPT < consumedGPT) { /* reduntant check */
+	    return false;
+	}
+	l.lastGracePeriod = block.timestamp + secsIn7Hours;
 	l.remainingGPT -= consumedGPT;
+	l.protectionUsed = true;
+
 	balance[owner]["GPT"] += consumedGPT;
 	totalConsumedGPT += consumedGPT;
-        emit ExtendGracePeriodEvent(msg.sender, _gpt_amount);
+        emit ExtendGracePeriodEvent(msg.sender, consumedGPT);
 
        return true;
     }
