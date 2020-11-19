@@ -706,9 +706,9 @@ contract LendingContract {
 	}
     
     emit  MarginCallEvent(l.poolAddr, _debtors_addr);
-
     totalLiqudatedEFGEq += l.EFGamount;
-	deleteLoan(_debtors_addr);
+    deleteLoan(_debtors_addr);
+    
     return true;
     }
 
@@ -721,7 +721,6 @@ contract LendingContract {
     function extendGracePeriod(uint256 _gpt_amount) external returns(bool result) {
         /* check if debt exists*/
         Loan storage l = debt[msg.sender];
-
         require(l.EFGamount > 0);
 
         /* check if GPT is enough to activate the grace period */
@@ -750,6 +749,7 @@ contract LendingContract {
 	if(consumedGPT == 0 ) {
 	    consumedGPT = 1; /* minimum GPT that can exist, 1e-4*/
 	}
+	assert(l.remainingGPT >= consumedGPT); /* should never happen */
 	l.remainingGPT -= consumedGPT;
 	balance[owner]["GPT"] += consumedGPT;
 	totalConsumedGPT += consumedGPT;
@@ -759,7 +759,7 @@ contract LendingContract {
     }
 
     /**
-     * @notice withdraw GPT , owner only, can withdraw to any address
+     * @notice withdraw GPT , owner only
      * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw the total
      * @return bool - true on success, else false
      */
@@ -937,7 +937,7 @@ contract LendingContract {
     if (l.remainingGPT > GPTamount ) {
             return 0;
         }
-	    GPTamount -= l.remainingGPT;
+	GPTamount -= l.remainingGPT;
         return GPTamount;
      }
 
@@ -1083,7 +1083,7 @@ contract LendingContract {
 	balance[_debtors_addr]["GPT"] += l.remainingGPT;
 
 	delete debt[_debtors_addr];
-    delete usersPool[_debtors_addr];
+	delete usersPool[_debtors_addr];
 
 	int memberIndex = addressSearch(p.members, _debtors_addr);
 	/* swap with last element and remove */
