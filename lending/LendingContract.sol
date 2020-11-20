@@ -636,9 +636,25 @@ contract LendingContract {
      */
     function withdrawAsset(bytes8 _symbol, uint256 _amount, address _beneficiars_addr) external returns(bool result) {
         require(_amount > 0);
-
+	Loan storage l = debt[msg.sender];
+	if (_symbol == "GPT") {
+	    if(msg.sender == owner) {
+		return withdrawGPT(_amount);
+		} else {
+		/* common user */
+		require(l.remainingGPT + balance[msg.sender]["GPT"] >= _amount);
+		if(_amount > balance[msg.sender]["GPT"]){
+		    balance[msg.sender]["GPT"] += (_amount - balance[msg.sender]["GPT"]);
+		    l.remainingGPT -= (_amount - balance[msg.sender]["GPT"]);
+		}
+	       require(GPT.transfer(_beneficiars_addr, _amount));
+	       assert(balance[msg.sender]["GPT"] >= _amount);
+	       balance[msg.sender]["GPT"] -= _amount;
+	       emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+	       return true;
+	   }
+	}
 	if (_symbol != "EFG") {
-	    Loan storage l = debt[msg.sender];
 	    int index = stringSearch(l.assetSymbol, _symbol);
 	    if (!l.locked && (index != -1) && (_symbol != "GPT")) {
 		/* the caller is a common user */
@@ -651,13 +667,12 @@ contract LendingContract {
 		    deleteLoan(msg.sender);
 		}
 	    }  else {
-		/* for GPT, owner and pool leaders */
+		/* for owner and pool leaders */
 		require(_amount <= balance[msg.sender][_symbol]);
 		balance[msg.sender][_symbol] -= _amount;
 	    }
 	
 	    /* send the tokens */
-	    if(_symbol != "GPT") {
 		index =  stringSearch(assetName, _symbol);
 		assert(index != -1); /* should never happen */
 		if(msg.sender == owner) {
@@ -666,16 +681,7 @@ contract LendingContract {
 		} else {
 		    require(asset[uint(index)].transfer(_beneficiars_addr, _amount));
 		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
-		}
-	    } else {
-		if(msg.sender == owner) {
-		    require(GPT.transfer(ownerWallet, _amount));
-		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
-		} else {
-		    require(GPT.transfer(_beneficiars_addr, _amount));
-		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
-		}
-	    }
+	    }	    
 	    return true;
 	} else {
 	    /* send the EFG */
@@ -793,7 +799,7 @@ contract LendingContract {
      * @param _amount - amount of GPT to withdrawn. If it is set to zero then  withdraw the total
      * @return bool - true on success, else false
      */
-    function withdrawGPT(uint256 _amount) external ownerOnly() returns(bool result){
+    function withdrawGPT(uint256 _amount) public ownerOnly() returns(bool result){
         require(balance[owner]["GPT"] > 0);
         uint256 requestedAmount = _amount;
         if ((_amount == 0) || ((_amount > balance[owner]["GPT"]))) {
@@ -823,6 +829,10 @@ contract LendingContract {
         view
         returns(uint256 assetBalance)
     {
+	if (_symbol == "GPT") {
+	    Loan memory l = debt[_address];
+	    return (l.remainingGPT + balance[_address]["GPT"]);
+	}
 	if (_symbol != "EFG") {
 	    return balance[_address][_symbol];
 	} else {
