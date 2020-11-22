@@ -721,7 +721,7 @@ contract LendingContract {
     {
 	require(canSeize(_debtors_addr));
 	/* auto trigger grace period if possible */
-	if(extendGracePeriod()) {
+	if(extendGracePeriod(_debtors_addr)) {
 	  return false;
 	}
         Loan storage l = debt[_debtors_addr];
@@ -749,20 +749,21 @@ contract LendingContract {
 
     /**
      * @notice extend Grace Period if possible
+     * @param _debtor - debtor's address
      * @return bool - true on success, else false
      */
-    function extendGracePeriod() internal returns(bool result) {
+    function extendGracePeriod(_debtors_addr) internal returns(bool result) {
         /* check if debt exists*/
-        Loan storage l = debt[msg.sender];
+        Loan storage l = debt[_debtors_addr];
 	/* each loan has right for a single grace period only */
 	if (l.protectionUsed == true) {
 	    return false;
 	}
 	
         /* check if GPT is enough to activate the grace period */
-	uint256 protectedValue = computeCollateralValue(msg.sender);
+	uint256 protectedValue = computeCollateralValue(_debtors_addr);
 	uint256 totalDebt;
-	(totalDebt,) = getDebt(msg.sender);
+	(totalDebt,) = getDebt(_debtors_addr);
 	/* in case of non triggered margin call */
 	if (protectedValue < totalDebt) {
 	    protectedValue = totalDebt;
@@ -792,7 +793,7 @@ contract LendingContract {
 
 	balance[owner]["GPT"] += consumedGPT;
 	totalConsumedGPT += consumedGPT;
-        emit ExtendGracePeriodEvent(msg.sender, consumedGPT);
+        emit ExtendGracePeriodEvent(_debtors_addr, consumedGPT);
 
        return true;
     }
