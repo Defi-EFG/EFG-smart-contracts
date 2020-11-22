@@ -749,10 +749,10 @@ contract LendingContract {
 
     /**
      * @notice extend Grace Period if possible
-     * @param _debtor - debtor's address
+     * @param _debtors_addr - debtor's address
      * @return bool - true on success, else false
      */
-    function extendGracePeriod(_debtors_addr) internal returns(bool result) {
+    function extendGracePeriod(address _debtors_addr) internal returns(bool result) {
         /* check if debt exists*/
         Loan storage l = debt[_debtors_addr];
 	/* each loan has right for a single grace period only */
