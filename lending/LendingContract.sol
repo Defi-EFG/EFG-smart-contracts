@@ -644,8 +644,9 @@ contract LendingContract {
 		/* common user */
 		require(l.remainingGPT + balance[msg.sender]["GPT"] >= _amount);
 		if(_amount > balance[msg.sender]["GPT"]){
-		    balance[msg.sender]["GPT"] += (_amount - balance[msg.sender]["GPT"]);
-		    l.remainingGPT -= (_amount - balance[msg.sender]["GPT"]);
+		  uint256 diff = _amount - balance[msg.sender]["GPT"];
+		    balance[msg.sender]["GPT"] += diff;
+		    l.remainingGPT -= diff;
 		}
 	       require(GPT.transfer(_beneficiars_addr, _amount));
 	       assert(balance[msg.sender]["GPT"] >= _amount);
@@ -720,7 +721,9 @@ contract LendingContract {
     {
 	require(canSeize(_debtors_addr));
 	/* auto trigger grace period if possible */
-	require(!extendGracePeriod());
+	if(extendGracePeriod()) {
+	  return false;
+	}
         Loan storage l = debt[_debtors_addr];
 	/* check if the caller is the pool leader or the contract owner */
         require((msg.sender == l.poolAddr) || (msg.sender == owner));
