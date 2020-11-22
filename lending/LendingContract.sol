@@ -229,7 +229,7 @@ contract LendingContract {
      * @return a boolean , true on success
      */
     function authOracles(address _oracleAddr, bool _action)
-        public
+        external
         ownerOnly()
         returns(bool result)
     {
@@ -307,7 +307,7 @@ contract LendingContract {
      * @return bool
      */
     function setCollateralRate(bytes8 _symbol, uint256 _rate)
-        public
+        external
         ownerOnly()
         returns(bool result)
     {
@@ -457,7 +457,7 @@ contract LendingContract {
      * @param _amount - amount to borrow in EFG
      * @return uint256 - total borrowed EFG
      */
-    function borrow(uint256 _amount) public returns(uint256 borrowedEFG) {
+    function borrow(uint256 _amount) external returns(uint256 borrowedEFG) {
         address poolAddr = usersPool[msg.sender];
 	    /* necessary checks */
 	    require(!(addressSearch(pool, poolAddr) == -1 ));
