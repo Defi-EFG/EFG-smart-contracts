@@ -17,8 +17,7 @@ contract StakingContract {
     // function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
     // function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
     // function getStakingInfo(address _stakers_addr) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
-    // function stopStaking() external returns (bool result);
-    // withdraw(uint pendingId) returns (bool result);  (withdraw must has pending id as an arg)
+    // withdraw(address _beneficiar, uint _pendingId) returns (bool result);  (withdraw must has pending id as an arg)
 
     ECRC20 GPT;
     ECRC20 EFG;
@@ -46,6 +45,7 @@ contract StakingContract {
 
     struct Pending {
         bool claimed; /* if already withdrawn or not */
+        address beneficiar; /* to whom the withdrawal right belongs */
         uint256 efgAmount; /* 8 decimals */
         uint256 gptAmount; /* 4 decimals */
         uint256 timestamp; /* maturity time */
@@ -53,7 +53,7 @@ contract StakingContract {
     mapping(uint256 => Pending) private pendingWithdrawals;
 
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
-    event WithdrawEFGEvent(bool result, address beneficiar, uint EFGAmount);
+    event WithdrawEvent(address beneficiar, uint EFGAmount, uint GPTAmount);
     event StopStaking(address minter, uint requestId);
     
     /**
@@ -104,6 +104,7 @@ contract StakingContract {
         Pending storage w = pendingWithdrawals[requestId];
         m.pendingRequests.push(requestId);
         w.claimed = false;
+        w.beneficiar = msg.sender;
         m.lockedAmount = 0;
         w.efgAmount = efgBalance;
         m.unclaimedAmount = 0;
@@ -115,28 +116,35 @@ contract StakingContract {
     }
 
     /**
-     * @notice withdraw EFG , beneficiar can withdraw to any address
+     * @notice withdraw all EFG and GPT after maturity, beneficiar can withdraw to any address
      * @param _beneficiar - destination address
-     * @param _amount - amount of EFG to withdrawn
+     * @param _pendingId - requestId of pending withdrawal
      * @return bool - true on success
      */
-    function withdrawEFG(address _beneficiar, uint256 _amount) external returns(bool result){
-        Minting storage m = minter[msg.sender];
-        require(_amount <= m.lockedAmount);
-        
-        /* send the tokens */
-        result = EFG.transfer(_beneficiar, _amount);
-        if(!result) {
-            emit WithdrawEFGEvent(false, msg.sender, _amount);
-            return false;
+    function withdraw(address _beneficiar, uint256 _pendingId) external returns(bool result){
+        Pending storage w = pendingWithdrawals[_pendingId];
+        require((w.beneficiar == msg.sender) && (w.claimed = false));
+        w.claimed = true;
+        require(withdrawEFG(_beneficiar, w.efgAmount));
+        uint256 wGPT = w.gptAmount;
+        if(unclaimedGPT() > 0) {
+            withdrawGPT(_beneficiar, w.gptAmount);
+        } else {
+            wGPT = 0;
         }
 
-        updateUnclaimedAmount(msg.sender);
-        m.lockedAmount -= _amount;
-        m.lastClaimed = block.timestamp;
-        emit WithdrawEFGEvent(true, _beneficiar, _amount);
-
+        emit WithdrawEvent(_beneficiar, 0, wGPT);
         return true;
+    }
+
+    function withdrawEFG(address _beneficiar, uint256 _amount) internal returns(bool result){
+        require(_amount>0);
+        return EFG.transfer(_beneficiar, _amount);
+    }
+
+    function withdrawGPT(address _beneficiar, uint256 _amount) internal returns(bool result){
+        require(_amount>0);
+        return GPT.transfer(_beneficiar, _amount);
     }
 
     /**
