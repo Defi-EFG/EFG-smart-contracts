@@ -12,15 +12,27 @@ contract ECRC20 {
 }
 
 contract StakingContract {
-    uint256 mintingRate;
-    address[] minters;
+
+    /* new function for implementation*/
+    function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
+    function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
+    function getStakingInfo(address _stakers_addr) external view returns (EFGamount, GPTamount, timestamp);
+    function stopStaking() external returns (bool result);
+    /* withdraw(uint pendingId) returns (bool result);  (withdraw must has pending id as an arg)*/
+
     ECRC20 GPT;
     ECRC20 EFG;
+    address owner;
+    address ownersWallet;
+    uint256 constant pendingPeriod = 21 days;
+    uint256 constant mintingRate = 1286; /* minting rate per second in e-16 */
+    uint256 rewardFee = 100; /* 4 decimals */
 
-    function StakingContract (address _EFG_addr,address  _GPT_addr) public {
-        mintingRate = 1286; /* mining rate per second in e-16 */
+    function StakingContract (address _EFG_addr,address  _GPT_addr, address _ownersWallet) public {
+	    owner = msg.sender;
         GPT = ECRC20(_GPT_addr); /* smart contract address of GPT , 4 decimal places */
         EFG = ECRC20(_EFG_addr); /* smart contract address of EFG , 8 decimal places*/
+	    ownersWallet = _ownersWallet; /* for the fee */
     }
 
     struct Minting {
@@ -64,12 +76,7 @@ contract StakingContract {
         m.lastClaimed = block.timestamp;
 
         emit MintGPTEvent(true , msg.sender, _amount);
-	
-	int index = addressSearch(minters, msg.sender);
-	if (index == -1) {
-	    minters.push(msg.sender);
-	}
-	return true;
+        return true;
     }
 
     /**
@@ -128,16 +135,6 @@ contract StakingContract {
         m.lastClaimed = block.timestamp;
         emit WithdrawEFGEvent(true, _beneficiar, _amount);
 
-	/* full withdrawal, remove from minters array */
-	if(m.lockedAmount == 0) {
-	    int index = addressSearch(minters, msg.sender);
-	    if(minters.length>0) { /* reduntant check */
-		/* swap and 'pop' */
-		minters[uint(index)] = minters[minters.length-1];
-		minters.length--;
-	    }
-	}
-
         return true;
     }
 
@@ -160,22 +157,6 @@ contract StakingContract {
     }
 
     /**
-     * @notice total EFG
-     * @return uint256 - the amount of EFG in contract
-     */
-    function totalStaking() public view returns(uint256 totalEFGdeposits){
-        return EFG.balanceOf(address(this));
-    }
-
-    /**
-     * @notice return all active minters
-     * @return address[] - array of minter's aaddresses
-     */
-    function getStakers() public view returns(address[] stakers){
-        return minters;
-    }
-
-    /**
      * @notice updates the total staked GPT amount in a minting contract
      * @param _minters_addr - address of minter
      */
@@ -190,33 +171,15 @@ contract StakingContract {
      * @param _period -
      * @param _rate -
      * @param _staked -
-     * return uint256 - the amount of unclaimed GPT , 4 digits
+     * return uint256 - the amount of unclaimed GPT
      */
 
     function computeUnclaimedAmount(uint _period, uint _rate, uint _staked) internal pure returns(uint256) {
         uint256 stakedAmount;
         
         stakedAmount = _period * _rate * _staked;
-        stakedAmount /= 1e16; /* convert to 4 digits */
+        stakedAmount /= 1e16; /* staking rate is in e-16 */
         
         return stakedAmount;
     }
-
-     /**
-     * @notice search element in array
-     * @param _targetArray - array to be searched
-     * @param _element - what to search
-     * @return int - array index if elemnt exists, else -1
-     */
-    function addressSearch(address[] _targetArray, address _element) internal pure returns (int index) {
-        index = -1;
-        for (uint i = 0; i < _targetArray.length; i++) {
-            if (_targetArray[i] == _element) {
-                index = int(i);
-                break;
-            }
-        }
-        return index;
-    }
-
 }
