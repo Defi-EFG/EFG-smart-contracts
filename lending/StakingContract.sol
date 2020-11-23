@@ -14,16 +14,17 @@ contract ECRC20 {
 contract StakingContract {
 
     /* new function for implementation*/
-    function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
-    function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
-    function getStakingInfo(address _stakers_addr) external view returns (EFGamount, GPTamount, timestamp);
-    function stopStaking() external returns (bool result);
-    /* withdraw(uint pendingId) returns (bool result);  (withdraw must has pending id as an arg)*/
+    // function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
+    // function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
+    // function getStakingInfo(address _stakers_addr) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
+    // function stopStaking() external returns (bool result);
+    // withdraw(uint pendingId) returns (bool result);  (withdraw must has pending id as an arg)
 
     ECRC20 GPT;
     ECRC20 EFG;
     address owner;
     address ownersWallet;
+    uint256 requests = 1; /* next available request id */
     uint256 constant pendingPeriod = 21 days;
     uint256 constant mintingRate = 1286; /* minting rate per second in e-16 */
     uint256 rewardFee = 100; /* 4 decimals */
@@ -36,11 +37,20 @@ contract StakingContract {
     }
 
     struct Minting {
+        uint256[] pendingRequests;
         uint256 lockedAmount; /* EFG, 8 decimales*/
         uint256 lastClaimed ; /* timestamp */
         uint256 unclaimedAmount; /* 4 decimals */
     }
-    mapping(address => Minting) private locked;
+    mapping(address => Minting) private minter;
+
+    struct Pending {
+        bool claimed;
+        uint256 efgAmount;
+        uint256 gptAmount;
+        uint256 timestamp;
+    }
+    mapping(uint256 => Pending) private pendingWithdrawals;
 
     event ClaimStakedGPT(bool result, address beneficiar, uint GPTAmount);
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
@@ -66,7 +76,7 @@ contract StakingContract {
         }
 
         /* create or update the minting info */
-        Minting storage m = locked[msg.sender];
+        Minting storage m = minter[msg.sender];
 
         if(m.lockedAmount > 0) {
             /* this is a topup*/
@@ -79,6 +89,7 @@ contract StakingContract {
         return true;
     }
 
+
     /**
      * @notice claim any unclaimed GPT (withdraw)
      * @param _beneficiar - destination address
@@ -88,7 +99,7 @@ contract StakingContract {
         /* first check if the contract has any GPT left*/
         require (unclaimedGPT() > 0);
         /* check if there was at least one EFG deposit*/
-        Minting storage m = locked[msg.sender];
+        Minting storage m = minter[msg.sender];
         if (m.lastClaimed == 0) { /* zero timestamp */
             emit ClaimStakedGPT(false, msg.sender, 0);
             return false;
@@ -120,7 +131,7 @@ contract StakingContract {
      * @return bool - true on success
      */
     function withdrawEFG(address _beneficiar, uint256 _amount) external returns(bool result){
-        Minting storage m = locked[msg.sender];
+        Minting storage m = minter[msg.sender];
         require(_amount <= m.lockedAmount);
         
         /* send the tokens */
@@ -144,7 +155,7 @@ contract StakingContract {
      * @return (uint256, uint256, uint256) - returns locked EFG, last topup timestamp and unclaimed amount
      */
     function mintingInfo(address _beneficiar) external view returns(uint256 lockedEFG, uint256 lastTimestamp, uint256 unclaimedAmount) {
-        Minting memory m = locked[_beneficiar];
+        Minting memory m = minter[_beneficiar];
         return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount));
     }
 
@@ -161,7 +172,7 @@ contract StakingContract {
      * @param _minters_addr - address of minter
      */
     function updateUnclaimedAmount(address _minters_addr) internal {
-        Minting storage m = locked[_minters_addr];
+        Minting storage m = minter[_minters_addr];
         m.unclaimedAmount += computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount);
         return ;
     }
