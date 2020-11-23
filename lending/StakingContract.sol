@@ -17,7 +17,6 @@ contract StakingContract {
     // function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
     // function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
     // function getStakingInfo(address _stakers_addr) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
-    // withdraw(address _beneficiar, uint _pendingId) returns (bool result);  (withdraw must has pending id as an arg)
 
     ECRC20 GPT;
     ECRC20 EFG;
@@ -55,7 +54,28 @@ contract StakingContract {
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     event WithdrawEvent(address beneficiar, uint EFGAmount, uint GPTAmount);
     event StopStaking(address minter, uint requestId);
+
+    /**
+     * @notice get the current reward fee
+     * @return uint - returns the fee, 4 decimal places
+     */
+    function getRewardFee() public view returns (uint fee) {
+        return rewardFee;
+    }
     
+    /**
+     * @notice owner can set a new rate between 0% - 10%
+     * @param _fee - new rate , 4 decimals
+     * @return bool - true on success
+     */
+    function setRewardFee(uint256 _fee) external returns (bool result) {
+        require(msg.sender == owner);
+        require(_fee <= 1000);
+
+        rewardFee = _fee;
+        return true;
+    }
+
     /**
      * @notice users can deposit EFG for staking
      * @param _amount - deposit amount of EFG , 8 decimals
@@ -147,8 +167,10 @@ contract StakingContract {
         return GPT.transfer(_beneficiar, _amount);
     }
 
+
+
     /**
-     * @notice returns mining info for the beneficiar
+     * @notice returns active minting info  for the beneficiar
      * @param _beneficiar - beneficiar's address
      * @return (uint256, uint256, uint256) - returns locked EFG, last topup timestamp and unclaimed amount
      */
