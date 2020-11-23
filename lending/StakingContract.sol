@@ -16,7 +16,6 @@ contract StakingContract {
     /* new function for implementation*/
     // function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
     // function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
-    // function getStakingInfo(address _stakers_addr) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
 
     ECRC20 GPT;
     ECRC20 EFG;
@@ -25,8 +24,8 @@ contract StakingContract {
     uint256 requests = 1; /* next available request id */
     uint256 constant pendingPeriod = 21 days;
     uint256 constant mintingRate = 1286; /* minting rate per second in e-16 */
-    uint256 rewardFee = 100; /* 4 decimals */
-    uint256 ownersFees;
+    uint256 rewardFee = 100; /* rate, 4 decimals */
+    uint256 ownersFees; /* GPT, 4 decimals */
 
     function StakingContract (address _EFG_addr,address  _GPT_addr, address _ownersWallet) public {
 	    owner = msg.sender;
@@ -200,12 +199,15 @@ contract StakingContract {
 
     /**
      * @notice returns active minting info  for the beneficiar
-     * @param _beneficiar - beneficiar's address
-     * @return (uint256, uint256, uint256) - returns locked EFG, last topup timestamp and unclaimed amount
+     * @param _stakers_addr - _staker's address
+     * @return (uint256, uint256, uint256) - returns locked EFG, current GPT amount and last topup timestamp
      */
-    function mintingInfo(address _beneficiar) external view returns(uint256 lockedEFG, uint256 lastTimestamp, uint256 unclaimedAmount) {
-        Minting memory m = minter[_beneficiar];
-        return (m.lockedAmount, m.lastClaimed, m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount));
+    function getStakingInfo(address _stakers_addr) external view 
+      returns (uint256 EFGamount, uint256 GPTamount, uint256 timestamp) {
+        Minting memory m = minter[_stakers_addr];
+        return (m.lockedAmount, 
+        m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount),
+        m.lastClaimed);
     }
 
     /**
