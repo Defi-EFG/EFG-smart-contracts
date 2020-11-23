@@ -26,6 +26,7 @@ contract StakingContract {
     uint256 constant pendingPeriod = 21 days;
     uint256 constant mintingRate = 1286; /* minting rate per second in e-16 */
     uint256 rewardFee = 100; /* 4 decimals */
+    uint256 ownersFees;
 
     function StakingContract (address _EFG_addr,address  _GPT_addr, address _ownersWallet) public {
 	    owner = msg.sender;
@@ -47,7 +48,7 @@ contract StakingContract {
         address beneficiar; /* to whom the withdrawal right belongs */
         uint256 efgAmount; /* 8 decimals */
         uint256 gptAmount; /* 4 decimals */
-        uint256 timestamp; /* maturity time */
+        uint256 maturity; /* maturity time */
     }
     mapping(uint256 => Pending) private pendingWithdrawals;
 
@@ -129,7 +130,7 @@ contract StakingContract {
         w.efgAmount = efgBalance;
         m.unclaimedAmount = 0;
         w.gptAmount = gptBalance;
-        w.timestamp = block.timestamp + pendingPeriod;
+        w.maturity = block.timestamp + pendingPeriod;
 
         emit StopStaking(msg.sender, requestId);
         return true;
@@ -145,6 +146,7 @@ contract StakingContract {
         Pending storage w = pendingWithdrawals[_pendingId];
         require((w.beneficiar == msg.sender) && (w.claimed = false));
         w.claimed = true;
+        require (w.maturity < block.timestamp);
         require(withdrawEFG(_beneficiar, w.efgAmount));
         uint256 wGPT = w.gptAmount;
         if(unclaimedGPT() > 0) {
@@ -153,21 +155,48 @@ contract StakingContract {
             wGPT = 0;
         }
 
-        emit WithdrawEvent(_beneficiar, 0, wGPT);
+        emit WithdrawEvent(_beneficiar, w.efgAmount, wGPT);
         return true;
     }
 
+    /**
+     * @notice withdraw EFG
+     * @param _beneficiar - address to send the EFG
+     * @param _amount
+     * @return bool - result
+     */
     function withdrawEFG(address _beneficiar, uint256 _amount) internal returns(bool result){
-        require(_amount>0);
+        assert(_amount>0);
         return EFG.transfer(_beneficiar, _amount);
     }
 
+    /**
+     * @notice withdraw GPT
+     * @param _beneficiar - address to send the GPT
+     * @param _amount 
+     * @return bool - result
+     */
     function withdrawGPT(address _beneficiar, uint256 _amount) internal returns(bool result){
-        require(_amount>0);
-        return GPT.transfer(_beneficiar, _amount);
+        assert(_amount>0);
+
+        uint256 amount;
+        uint256 netAmount;
+        uint256 withdrawalFee;
+
+        /* get the minimum of the beneficiars balance and smart contract balance of GPT */
+        amount = unclaimedGPT();
+        if(amount > _amount) {
+            amount = _amount;
+        }
+
+        (netAmount, withdrawalFee) = computeFee(amount, rewardFee);
+        if(GPT.transfer(_beneficiar, netAmount)) {
+            ownersFees += withdrawalFee;
+            return true;
+        } else {
+            return false;
+        }
     }
-
-
 
     /**
      * @notice returns active minting info  for the beneficiar
@@ -198,13 +227,26 @@ contract StakingContract {
     }
 
     /**
+     * @notice compute the fee for GPT
+     * @param _amount - 4 decimals
+     * @param _fee - the fee rate, 4 decimals
+     * @return uint256 netAmount - returns the net amount (after fee is substracted)
+     * @return uint256 withdrawalFee- returns fee amount
+     */
+    function computeFee(uint256 _amount, uint256 _fee) internal pure returns (uint256 netAmount, uint256 withdrawalFee) {
+        netAmount = ((1e4 - _fee) * _amount)/1e4;
+        withdrawalFee = _amount - netAmount;
+
+        return (netAmount, withdrawalFee);
+    }
+
+    /**
      * @notice for computing the staked amount of last period only (pure function)
      * @param _period -
      * @param _rate -
      * @param _staked -
      * return uint256 - the amount of unclaimed GPT
      */
-
     function computeUnclaimedAmount(uint _period, uint _rate, uint _staked) internal pure returns(uint256) {
         uint256 stakedAmount;
         
