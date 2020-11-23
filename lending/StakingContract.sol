@@ -45,16 +45,16 @@ contract StakingContract {
     mapping(address => Minting) private minter;
 
     struct Pending {
-        bool claimed;
-        uint256 efgAmount;
-        uint256 gptAmount;
-        uint256 timestamp;
+        bool claimed; /* if already withdrawn or not */
+        uint256 efgAmount; /* 8 decimals */
+        uint256 gptAmount; /* 4 decimals */
+        uint256 timestamp; /* maturity time */
     }
     mapping(uint256 => Pending) private pendingWithdrawals;
 
-    event ClaimStakedGPT(bool result, address beneficiar, uint GPTAmount);
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     event WithdrawEFGEvent(bool result, address beneficiar, uint EFGAmount);
+    event StopStaking(address minter, uint requestId);
     
     /**
      * @notice users can deposit EFG for staking
@@ -89,38 +89,28 @@ contract StakingContract {
         return true;
     }
 
-
     /**
-     * @notice claim any unclaimed GPT (withdraw)
-     * @param _beneficiar - destination address
+     * @notice request staking - EFG and GPT will be feezed for 21 days
      * @return bool - true on success
      */
-    function claimStakedGPT(address _beneficiar) external returns(bool result) {
-        /* first check if the contract has any GPT left*/
-        require (unclaimedGPT() > 0);
-        /* check if there was at least one EFG deposit*/
+    function stopStaking() external returns (bool result) {
         Minting storage m = minter[msg.sender];
-        if (m.lastClaimed == 0) { /* zero timestamp */
-            emit ClaimStakedGPT(false, msg.sender, 0);
-            return false;
-        }
+        require(m.lockedAmount>0);
+        /* get the next available ID */
+        requests++;
+        uint requestId = requests-1;
+        uint efgBalance = m.lockedAmount;
+        uint gptBalance = m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount);
+        Pending storage w = pendingWithdrawals[requestId];
+        m.pendingRequests.push(requestId);
+        w.claimed = false;
+        m.lockedAmount = 0;
+        w.efgAmount = efgBalance;
+        m.unclaimedAmount = 0;
+        w.gptAmount = gptBalance;
+        w.timestamp = block.timestamp + pendingPeriod;
 
-        updateUnclaimedAmount(msg.sender);
-        m.lastClaimed = block.timestamp;
-        uint256 allowedGPT = m.unclaimedAmount;
-        if (allowedGPT > unclaimedGPT()) {
-            allowedGPT = unclaimedGPT();
-        }
-
-        /* send out the GPT */
-        result = GPT.transfer(_beneficiar, allowedGPT);
-        if (!result) {
-            emit ClaimStakedGPT(false, _beneficiar, allowedGPT);
-            return false;
-        }
-
-        m.unclaimedAmount -= allowedGPT;
-        emit ClaimStakedGPT(true, _beneficiar, allowedGPT);
+        emit StopStaking(msg.sender, requestId);
         return true;
     }
 
