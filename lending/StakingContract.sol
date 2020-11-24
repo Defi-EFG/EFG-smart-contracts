@@ -21,6 +21,7 @@ contract StakingContract {
     uint256 constant mintingRate = 1286; /* minting rate per second in e-16 */
     uint256 rewardFee = 100; /* rate, 4 decimals */
     uint256 ownersFees; /* GPT, 4 decimals */
+    uint256 pendingGPT; /* aggrigated pending GPT, 4 decimals */
 
     function StakingContract (address _EFG_addr,address  _GPT_addr, address _ownersWallet) public {
 	    owner = msg.sender;
@@ -79,7 +80,7 @@ contract StakingContract {
     function mintGPT(uint256 _amount) external returns(bool result) {
         require(_amount > 0);
         /* check if contract still has GPT */
-        if (unclaimedGPT() == 0) {
+        if (availableGPT() == 0) {
             emit MintGPTEvent(false, msg.sender, _amount);
             return false;
         }
@@ -125,6 +126,7 @@ contract StakingContract {
         m.unclaimedAmount = 0;
         w.gptAmount = gptBalance;
         w.maturity = block.timestamp + pendingPeriod;
+        pendingGPT += gptBalance;
 
         emit StopStaking(msg.sender, requestId);
         return true;
@@ -143,7 +145,7 @@ contract StakingContract {
         require (w.maturity < block.timestamp);
         require(withdrawEFG(_beneficiar, w.efgAmount));
         uint256 wGPT = w.gptAmount;
-        if(unclaimedGPT() > 0) {
+        if(availableGPT() > 0) {
             withdrawGPT(_beneficiar, w.gptAmount);
         } else {
             wGPT = 0;
@@ -192,7 +194,7 @@ contract StakingContract {
         uint256 withdrawalFee;
 
         /* get the minimum of the beneficiars balance and smart contract balance of GPT */
-        amount = unclaimedGPT();
+        amount = availableGPT();
         if(amount > _amount) {
             amount = _amount;
         }
@@ -200,6 +202,7 @@ contract StakingContract {
         (netAmount, withdrawalFee) = computeFee(amount, rewardFee);
         if(GPT.transfer(_beneficiar, netAmount)) {
             ownersFees += withdrawalFee;
+            pendingGPT -= amount;
             return true;
         } else {
             return false;
@@ -251,8 +254,19 @@ contract StakingContract {
      * @notice return remaing GPT of smart contract , 4 decimal places
      * @return uint256 - the amount of remaining tokens
      */
-    function unclaimedGPT() public view returns(uint256 contractGPTBalance){
+    function unclaimedGPT() external view returns(uint256 contractGPTBalance){
         return GPT.balanceOf(address(this));
+    }
+
+    /**
+     * @notice return available GPT (considers pending demands) 4 decimal places
+     * @return uint256 - the amount of available tokens
+     */
+    function availableGPT() public view returns(uint256 available){
+        uint currentBalance = GPT.balanceOf(address(this));
+        currentBalance -= pendingGPT;
+
+        return currentBalance;
     }
 
     /**
