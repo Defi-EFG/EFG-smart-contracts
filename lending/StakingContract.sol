@@ -21,7 +21,7 @@ contract StakingContract {
     uint256 constant mintingRate = 1286; /* minting rate per second in e-16 */
     uint256 rewardFee = 100; /* rate, 4 decimals */
     uint256 ownersFees; /* GPT, 4 decimals */
-    uint256 pendingGPT; /* aggrigated pending GPT, 4 decimals */
+    uint256 pendingGPT; /* accumulated pending GPT, 4 decimals */
 
     function StakingContract (address _EFG_addr,address  _GPT_addr, address _ownersWallet) public {
 	    owner = msg.sender;
@@ -50,6 +50,8 @@ contract StakingContract {
     event MintGPTEvent(bool result, address beneficiar, uint EFGAmount);
     event WithdrawEvent(address beneficiar, uint EFGAmount, uint GPTAmount);
     event StopStaking(address minter, uint requestId);
+    event ClaimFeesEvent(bool result, uint amount);
+
 
     /**
      * @notice get the current reward fee
@@ -163,6 +165,7 @@ contract StakingContract {
                 m.pendingRequests[index] = m.pendingRequests[m.pendingRequests.length-1];
                 /* 'pop' */
                 m.pendingRequests.length--;
+                break;
             }
         }
 
@@ -206,6 +209,27 @@ contract StakingContract {
             return true;
         } else {
             return false;
+        }
+    }
+
+    /**
+     * @notice withdraw GPT fee, owner only
+     * @return bool - result
+     */
+    function claimFees() external returns(bool result) {
+        require (msg.sender == owner);
+        require (ownersFees > 0);
+
+        uint256 amount = ownersFees;
+        if (amount <  GPT.balanceOf(address(this)) {
+            amount = GPT.balanceOf(address(this);
+        }
+        if (GPT.transfer(ownersWallet, amount)) {
+            emit ClaimFeesEvent(false, amount);
+            return true;
+        } else {
+            emit ClaimFeesEvent(true, amount);
+            return false();
         }
     }
 
