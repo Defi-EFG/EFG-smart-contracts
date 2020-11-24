@@ -12,10 +12,6 @@ contract ECRC20 {
 }
 
 contract StakingContract {
-
-    /* new function for implementation*/
-    // function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
-
     ECRC20 GPT;
     ECRC20 EFG;
     address owner;
@@ -207,6 +203,16 @@ contract StakingContract {
         return (m.lockedAmount, 
         m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount),
         m.lastClaimed);
+    }
+
+    /**
+     * @notice returns an array of request that belong to beneficiar
+     * @param _stakers_addr - _staker's address
+     * @return uint[] - returns all request ids of the staker
+     */
+    function getPendingIds (address _stakers_addr) external view returns (uint[] pendingId) {
+        Minting m = minter[_stakers_addr];
+        return m.pendingRequests;
     }
 
     /**
