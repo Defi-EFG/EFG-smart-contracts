@@ -138,7 +138,7 @@ contract StakingContract {
      */
     function withdraw(address _beneficiar, uint256 _pendingId) external returns(bool result){
         Pending storage w = pendingWithdrawals[_pendingId];
-        require((w.beneficiar == msg.sender) && (w.claimed = false));
+        require((w.beneficiar == msg.sender) && (w.claimed == false));
         w.claimed = true;
         require (w.maturity < block.timestamp);
         require(withdrawEFG(_beneficiar, w.efgAmount));
@@ -150,6 +150,20 @@ contract StakingContract {
         }
 
         emit WithdrawEvent(_beneficiar, w.efgAmount, wGPT);
+
+        delete pendingWithdrawals[_pendingId];
+        /* also delete from minters array */
+        Minting storage m = minter[msg.sender];
+         /* find the element */
+        for(uint index=0; index < m.pendingRequests.length; index++) {
+            if( m.pendingRequests[index] == _pendingId) {
+                /* switch with last element*/
+                m.pendingRequests[index] = m.pendingRequests[m.pendingRequests.length-1];
+                /* 'pop' */
+                m.pendingRequests.length--;
+            }
+        }
+
         return true;
     }
 
@@ -211,7 +225,7 @@ contract StakingContract {
      * @return uint[] - returns all request ids of the staker
      */
     function getPendingIds (address _stakers_addr) external view returns (uint[] pendingId) {
-        Minting m = minter[_stakers_addr];
+        Minting memory m = minter[_stakers_addr];
         return m.pendingRequests;
     }
 
