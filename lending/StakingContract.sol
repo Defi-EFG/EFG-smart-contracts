@@ -222,7 +222,7 @@ contract StakingContract {
 
         uint256 amount = ownersFees;
         uint256 maxAmount = GPT.balanceOf(address(this));
-        if (amount <  maxAmount) {
+        if (amount >  maxAmount) {
             amount = maxAmount;
         }
         if (GPT.transfer(ownersWallet, amount)) {
