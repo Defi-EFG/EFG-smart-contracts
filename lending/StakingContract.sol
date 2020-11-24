@@ -227,6 +227,7 @@ contract StakingContract {
         }
         if (GPT.transfer(ownersWallet, amount)) {
             ownersFees -= amount;
+            pendingGPT -= amount;
             emit ClaimFeesEvent(false, amount);
             return amount;
         } else {
