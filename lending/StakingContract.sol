@@ -205,7 +205,7 @@ contract StakingContract {
         (netAmount, withdrawalFee) = computeFee(amount, rewardFee);
         if(GPT.transfer(_beneficiar, netAmount)) {
             ownersFees += withdrawalFee;
-            pendingGPT -= amount;
+            pendingGPT -= netAmount;
             return true;
         } else {
             return false;
