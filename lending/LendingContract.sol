@@ -787,9 +787,10 @@ contract LendingContract {
 	if (l.remainingGPT < consumedGPT) { /* reduntant check */
 	    return false;
 	}
-	l.lastGracePeriod = block.timestamp + secsIn7Hours;
+    
+    l.protectionUsed = true;	
 	l.remainingGPT -= consumedGPT;
-	l.protectionUsed = true;
+	l.lastGracePeriod = block.timestamp + secsIn7Hours;
 
 	balance[owner]["GPT"] += consumedGPT;
 	totalConsumedGPT += consumedGPT;

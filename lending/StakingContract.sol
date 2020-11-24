@@ -22,6 +22,8 @@ contract StakingContract {
     uint256 rewardFee = 100; /* rate, 4 decimals */
     uint256 ownersFees; /* GPT, 4 decimals */
     uint256 pendingGPT; /* accumulated pending GPT, 4 decimals */
+    uint256 activeStakers; /* current stakers, 8 decimals */
+    uint256 stakingAmount; /* current staking amount, 8 decimals */
 
     function StakingContract (address _EFG_addr,address  _GPT_addr, address _ownersWallet) public {
 	    owner = msg.sender;
@@ -54,7 +56,7 @@ contract StakingContract {
 
 
     /**
-     * @notice get the current reward fee
+     * @notice get the current reward fee rate
      * @return uint - returns the fee, 4 decimal places
      */
     function getRewardFee() public view returns (uint fee) {
@@ -99,9 +101,13 @@ contract StakingContract {
         if(m.lockedAmount > 0) {
             /* this is a topup*/
             updateUnclaimedAmount(msg.sender);
+        } else {
+            /* new staker */
+            activeStakers++;
         }
         m.lockedAmount += _amount;
         m.lastClaimed = block.timestamp;
+        stakingAmount += _amount;
 
         emit MintGPTEvent(true , msg.sender, _amount);
         return true;
@@ -116,6 +122,7 @@ contract StakingContract {
         require(m.lockedAmount>0);
         /* get the next available ID */
         requests++;
+        activeStakers--;        
         uint requestId = requests-1;
         uint efgBalance = m.lockedAmount;
         uint gptBalance = m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount);
@@ -129,6 +136,8 @@ contract StakingContract {
         w.gptAmount = gptBalance;
         w.maturity = block.timestamp + pendingPeriod;
         pendingGPT += gptBalance;
+
+        stakingAmount -= efgBalance;
 
         emit StopStaking(msg.sender, requestId);
         return true;
@@ -284,6 +293,22 @@ contract StakingContract {
 
          return(w.claimed, w.beneficiar, w.efgAmount, w.gptAmount, w.maturity);
      }
+
+    /**
+     * @notice
+     * @return uint256 - how many active stakers exist
+     */
+    function getTotalStakers() external view returns (uint) {
+        return activeStakers;
+    }
+
+    /**
+     * @notice
+     * @return uint256 - returns the total active staking EFG , 8 decimals
+     */
+    function getTotalStaking() external view returns (uint) {
+        return stakingAmount;
+    }
 
     /**
      * @notice return remaing GPT of smart contract , 4 decimal places
