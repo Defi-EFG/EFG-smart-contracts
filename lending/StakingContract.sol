@@ -214,9 +214,9 @@ contract StakingContract {
 
     /**
      * @notice withdraw GPT fee, owner only
-     * @return bool - result
+     * @return uint - claimed fees , 4 decimals
      */
-    function claimFees() external returns(bool result) {
+    function claimFees() external returns(uint claimedFee) {
         require (msg.sender == owner);
         require (ownersFees > 0);
 
@@ -228,11 +228,19 @@ contract StakingContract {
         if (GPT.transfer(ownersWallet, amount)) {
             ownersFees -= amount;
             emit ClaimFeesEvent(false, amount);
-            return true;
+            return amount;
         } else {
             emit ClaimFeesEvent(true, amount);
-            return false;
+            return 0;
         }
+    }
+
+    /**
+     * @notice get unclaimed fees
+     * @return uint - unclaimed fees , 4 decimals
+     */
+    function getUnclaimedFees() external view returns (uint unclaimedFee) {
+        return ownersFees;
     }
 
     /**
