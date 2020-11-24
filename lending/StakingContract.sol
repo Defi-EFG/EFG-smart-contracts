@@ -221,15 +221,16 @@ contract StakingContract {
         require (ownersFees > 0);
 
         uint256 amount = ownersFees;
-        if (amount <  GPT.balanceOf(address(this)) {
-            amount = GPT.balanceOf(address(this);
+        uint256 maxAmount = GPT.balanceOf(address(this));
+        if (amount <  maxAmount) {
+            amount = maxAmount;
         }
         if (GPT.transfer(ownersWallet, amount)) {
             emit ClaimFeesEvent(false, amount);
             return true;
         } else {
             emit ClaimFeesEvent(true, amount);
-            return false();
+            return false;
         }
     }
 
