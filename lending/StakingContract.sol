@@ -15,7 +15,6 @@ contract StakingContract {
 
     /* new function for implementation*/
     // function getPendingIdsaddress (address _stakers_addr) external view returns (uint[] pendingId);
-    // function getPendingInfo(uint pendingId) external view returns (uint EFGamount, uint GPTamount, uint timestamp);
 
     ECRC20 GPT;
     ECRC20 EFG;
@@ -161,7 +160,7 @@ contract StakingContract {
     /**
      * @notice withdraw EFG
      * @param _beneficiar - address to send the EFG
-     * @param _amount
+     * @param _amount -
      * @return bool - result
      */
     function withdrawEFG(address _beneficiar, uint256 _amount) internal returns(bool result){
@@ -209,6 +208,24 @@ contract StakingContract {
         m.unclaimedAmount + computeUnclaimedAmount((block.timestamp - m.lastClaimed), mintingRate, m.lockedAmount),
         m.lastClaimed);
     }
+
+    /**
+     * @notice returns info for pending (or claimed) requests
+     * @param _pendingId - id of the request
+     * @return bool - if true , the asset are alredy withdrawn
+     * @return address - the beneficiar's address
+     * @return uint - EFG amount
+     * @return uint - GPT amount
+     * @return uint - maturity time
+     */
+     function getPendingInfo(uint _pendingId) external view
+       returns (bool claimed, address beneficiar, uint EFGamount, uint GPTamount, uint maturity) {
+         Pending memory w = pendingWithdrawals[_pendingId];
+         /* check if it exists first */
+         require(w.maturity != 0);
+
+         return(w.claimed, w.beneficiar, w.efgAmount, w.gptAmount, w.maturity);
+     }
 
     /**
      * @notice return remaing GPT of smart contract , 4 decimal places
