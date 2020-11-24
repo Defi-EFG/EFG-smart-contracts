@@ -147,7 +147,7 @@ contract StakingContract {
         require (w.maturity < block.timestamp);
         require(withdrawEFG(_beneficiar, w.efgAmount));
         uint256 wGPT = w.gptAmount;
-        if(availableGPT() > 0) {
+        if((availableGPT() > 0) && (w.gptAmount !=0)) {
             withdrawGPT(_beneficiar, w.gptAmount);
         } else {
             wGPT = 0;
@@ -226,6 +226,7 @@ contract StakingContract {
             amount = maxAmount;
         }
         if (GPT.transfer(ownersWallet, amount)) {
+            ownersFees -= amount;
             emit ClaimFeesEvent(false, amount);
             return true;
         } else {
