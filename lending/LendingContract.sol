@@ -647,7 +647,6 @@ contract LendingContract {
 		    l.remainingGPT = sub(l.remainingGPT, diff);
 		}
 	       require(GPT.transfer(_beneficiars_addr, _amount));
-	       assert(balance[msg.sender]["GPT"] >= _amount);
 	       balance[msg.sender]["GPT"] = sub(balance[msg.sender]["GPT"], _amount);
 	       emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
 	       return true;
@@ -1151,8 +1150,8 @@ contract LendingContract {
 
     /**
      * @notice safe sub of uints, throws on underflow
-     * @param _a - array to be searched
-     * @param _b - what to search
+     * @param _a - 
+     * @param _b - 
      * @return uint256 - result of subtraction
      */
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
