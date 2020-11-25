@@ -478,7 +478,7 @@ contract LendingContract {
 	    /* update interest*/
             l.interest +=
                 (l.EFGamount *
-                    ((block.timestamp - l.timestamp) * l.interestRate)) /
+                    (sub(block.timestamp - l.timestamp) * l.interestRate)) /
                 (secsInDay * 1e4);
         }
         l.timestamp = block.timestamp;
@@ -504,7 +504,7 @@ contract LendingContract {
         Loan memory d = debt[_debtor];
         totalDebt = d.EFGamount + d.interest;
         uint256 lastInterest = ((d.EFGamount *
-            ((block.timestamp - d.timestamp) * d.interestRate)) /
+            (sub(block.timestamp - d.timestamp) * d.interestRate)) /
             (secsInDay * 1e4));
         totalDebt += lastInterest;
         return (totalDebt, d.poolAddr);
@@ -536,7 +536,7 @@ contract LendingContract {
         }
 
 	/* update interest first */
-            d.interest += (d.EFGamount * ((block.timestamp - d.timestamp)
+            d.interest += (d.EFGamount * (sub(block.timestamp - d.timestamp)
 			   * d.interestRate)) / (secsInDay * 1e4);
 	    d.timestamp = block.timestamp;
         if (amount <= d.interest) {
@@ -550,7 +550,7 @@ contract LendingContract {
 
         /* repay amount is greater than interest, decrease the loan */
 	Pool storage p = poolsData[d.poolAddr];
-        uint256 amountLeft = amount - d.interest;
+        uint256 amountLeft = sub(amount - d.interest);
 	EFGBalance[d.poolAddr] += d.interest;
 	totalInterestAmount += d.interest;
         d.interest = 0;
@@ -642,7 +642,7 @@ contract LendingContract {
 		/* common user */
 		require(l.remainingGPT + balance[msg.sender]["GPT"] >= _amount);
 		if(_amount > balance[msg.sender]["GPT"]){
-		  uint256 diff = _amount - balance[msg.sender]["GPT"];
+		  uint256 diff = sub(_amount - balance[msg.sender]["GPT"]);
 		    balance[msg.sender]["GPT"] += diff;
 		    l.remainingGPT = sub(l.remainingGPT, diff);
 		}
@@ -731,8 +731,8 @@ contract LendingContract {
 	
 	for (uint i=0; i < l.assetSymbol.length; i++ ) {
 	  balance[l.poolAddr][l.assetSymbol[i]] += l.collateralRate[i]* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4
-	    + ((1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2 ; /* 50% profit*/
-	  balance[owner][l.assetSymbol[i]] +=  ((1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
+	    + (sub(1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2 ; /* 50% profit*/
+	  balance[owner][l.assetSymbol[i]] +=  (sub(1e4-l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
 	  /* also, remove the asssets from the pool */
 	  p.collateral[_debtors_addr][l.assetSymbol[i]] = 0;
 	  l.deposits[l.assetSymbol[i]] = 0;
@@ -1058,7 +1058,7 @@ contract LendingContract {
 	if (maxBorrowing <= totalDebt) {
 	    return 0;
 	}
-        return (maxBorrowing - totalDebt);
+        return (sub(maxBorrowing - totalDebt));
     }
 
     /**
