@@ -554,7 +554,7 @@ contract LendingContract {
 	totalInterestAmount += d.interest;
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
-              d.EFGamount = sub(d.interest, amountLeft);
+              d.EFGamount = sub(d.EFGamount, amountLeft);
 	      p.remainingEFG += amountLeft;
               emit RepayEvent(false , msg.sender, amount);
               return true;
@@ -658,7 +658,7 @@ contract LendingContract {
 		require(_amount <= l.deposits[_symbol]);
 		l.deposits[_symbol] = sub(l.deposits[_symbol], _amount);
 		Pool storage p = poolsData[l.poolAddr];
-		p.collateral[msg.sender][_symbol] = sub(l.remainingGPT, _amount);
+		p.collateral[msg.sender][_symbol] = sub(p.collateral[msg.sender][_symbol], _amount);
 		/* if all collateral were withdrawn then delete the loan */
 		if (computeCollateralValue(msg.sender) == 0) {
 		    deleteLoan(msg.sender);
@@ -987,7 +987,7 @@ contract LendingContract {
     if (l.remainingGPT > GPTamount ) {
             return 0;
         }
-	GPTamount = sub(l.remainingGPT, l.remainingGPT);
+	GPTamount = sub(GPTamount, l.remainingGPT);
         return GPTamount;
      }
 
