@@ -483,9 +483,7 @@ contract LendingContract {
         }
         l.timestamp = block.timestamp;
         l.EFGamount += _amount;
-	/* security underflow check: check again before substraction */
-	assert(p.remainingEFG >= _amount );
-        p.remainingEFG -= _amount;
+        p.remainingEFG = sub(p.remainingEFG, _amount);
 	
         emit BorrowEvent(firstBorrow, poolAddr, msg.sender, _amount);
 
@@ -543,7 +541,7 @@ contract LendingContract {
 	    d.timestamp = block.timestamp;
         if (amount <= d.interest) {
             /* repay the interest first */
-            d.interest -= amount;
+            d.interest = sub(d.interest, amount);
 	    totalInterestAmount += amount;
 	    EFGBalance[d.poolAddr] += amount;
             emit RepayEvent(false , msg.sender, amount);
@@ -557,7 +555,7 @@ contract LendingContract {
 	totalInterestAmount += d.interest;
         d.interest = 0;
         if (d.EFGamount > amountLeft) {
-              d.EFGamount -= amountLeft;
+              d.EFGamount = sub(d.interest, amountLeft);
 	      p.remainingEFG += amountLeft;
               emit RepayEvent(false , msg.sender, amount);
               return true;
@@ -603,9 +601,9 @@ contract LendingContract {
         if (!l.locked && (index != -1)) {
 	    /* the caller is a common user */
 	    require(_amount <= l.deposits["ECOC"]);
-	    l.deposits["ECOC"] -= _amount;
+	    l.deposits["ECOC"] = sub(l.deposits["ECOC"], _amount);
             Pool storage p = poolsData[l.poolAddr];
-            p.collateral[msg.sender]["ECOC"] -= _amount;
+            p.collateral[msg.sender]["ECOC"] = sub(p.collateral[msg.sender]["ECOC"], _amount);
             /* if all collateral were withdrawn then delete the loan */
             if (computeCollateralValue(msg.sender) == 0) {
                 deleteLoan(msg.sender);
@@ -613,7 +611,7 @@ contract LendingContract {
         } else {
 	    /* for owner and pool leaders */
 	    require(_amount <= balance[msg.sender]["ECOC"]);
-	    balance[msg.sender]["ECOC"] -= _amount;
+	    balance[msg.sender]["ECOC"] = sub(balance[msg.sender]["ECOC"], _amount);
 	}
 	if (msg.sender == owner) {
 	    /* transfer throws on failure */
@@ -646,11 +644,11 @@ contract LendingContract {
 		if(_amount > balance[msg.sender]["GPT"]){
 		  uint256 diff = _amount - balance[msg.sender]["GPT"];
 		    balance[msg.sender]["GPT"] += diff;
-		    l.remainingGPT -= diff;
+		    l.remainingGPT = sub(l.remainingGPT, diff);
 		}
 	       require(GPT.transfer(_beneficiars_addr, _amount));
 	       assert(balance[msg.sender]["GPT"] >= _amount);
-	       balance[msg.sender]["GPT"] -= _amount;
+	       balance[msg.sender]["GPT"] = sub(balance[msg.sender]["GPT"], _amount);
 	       emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
 	       return true;
 	   }
@@ -660,9 +658,9 @@ contract LendingContract {
 	    if (!l.locked && (index != -1) && (_symbol != "GPT")) {
 		/* the caller is a common user */
 		require(_amount <= l.deposits[_symbol]);
-		l.deposits[_symbol] -= _amount;
+		l.deposits[_symbol] = sub(l.deposits[_symbol], _amount);
 		Pool storage p = poolsData[l.poolAddr];
-		p.collateral[msg.sender][_symbol] -= _amount;
+		p.collateral[msg.sender][_symbol] = sub(l.remainingGPT, _amount);
 		/* if all collateral were withdrawn then delete the loan */
 		if (computeCollateralValue(msg.sender) == 0) {
 		    deleteLoan(msg.sender);
@@ -670,7 +668,7 @@ contract LendingContract {
 	    }  else {
 		/* for owner and pool leaders */
 		require(_amount <= balance[msg.sender][_symbol]);
-		balance[msg.sender][_symbol] -= _amount;
+		balance[msg.sender][_symbol] = sub(balance[msg.sender][_symbol], _amount);
 	    }
 	
 	    /* send the tokens */
@@ -698,7 +696,7 @@ contract LendingContract {
      */
     function withdrawEFG(uint256 _amount, address _beneficiars_addr) internal returns(bool result) {
         require(EFGBalance[msg.sender] >= _amount);
-        EFGBalance[msg.sender] -= _amount;
+        EFGBalance[msg.sender] = sub(EFGBalance[msg.sender], _amount);
         /* send the tokens */
 	if(msg.sender == owner){
 	    require(EFG.transfer(ownerWallet, _amount));
@@ -789,7 +787,7 @@ contract LendingContract {
 	}
     
     l.protectionUsed = true;	
-	l.remainingGPT -= consumedGPT;
+	l.remainingGPT = sub(l.remainingGPT, consumedGPT);
 	l.lastGracePeriod = block.timestamp + secsIn7Hours;
 
 	balance[owner]["GPT"] += consumedGPT;
@@ -818,7 +816,7 @@ contract LendingContract {
             return false;
         } else {
             emit WithdrawGPTEvent(true, msg.sender, requestedAmount);
-	    balance[owner]["GPT"] -= requestedAmount;
+	    balance[owner]["GPT"] = sub(l.remainingGPT, requestedAmount);
             return true;
         }
     }
@@ -991,7 +989,7 @@ contract LendingContract {
     if (l.remainingGPT > GPTamount ) {
             return 0;
         }
-	GPTamount -= l.remainingGPT;
+	GPTamount = sub(l.remainingGPT, l.remainingGPT);
         return GPTamount;
      }
 
@@ -1149,5 +1147,18 @@ contract LendingContract {
 	}
 
 	return true;
+    }
+
+    /**
+     * @notice safe sub of uints, throws on underflow
+     * @param _a - array to be searched
+     * @param _b - what to search
+     * @return uint256 - result of subtraction
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        assert(b <= a);
+        uint256 c = a - b;
+
+        return c;
     }
 }
