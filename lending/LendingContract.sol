@@ -510,16 +510,17 @@ contract LendingContract {
     }
 
     /**
-     * @notice fully or partially repay ECOC
+     * @notice fully or partially repay
      * @param _amount of EFG to be payed back
      * @return bool
      */
     function repay(uint256 _amount) external returns (bool result) {
         require(_amount > 0);
-	require(d.EFGamount !=0);
 	Loan storage d = debt[msg.sender];
-	uint256 maxEFG = d.EFGamount + d.interest + (d.EFGamount * ((block.timestamp - d.timestamp)
-			* d.interestRate)) / (secsInDay * 1e4);
+	require(d.EFGamount !=0);
+	uint256 maxEFG;
+	(maxEFG,) = getDebt(msg.sender);
+
 	uint256 amount;
 	if (_amount > maxEFG) {
 	    amount = maxEFG;
