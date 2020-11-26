@@ -726,11 +726,12 @@ contract LendingContract {
 
 	/* seize the collateral */
         Pool storage p = poolsData[l.poolAddr];
-	
+	uint256 profit;
 	for (uint i=0; i < l.assetSymbol.length; i++ ) {
+	  profit = (sub(1e4, l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4);
 	  balance[l.poolAddr][l.assetSymbol[i]] += l.collateralRate[i]* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4
-	    + (sub(1e4, l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2 ; /* 50% profit*/
-	  balance[owner][l.assetSymbol[i]] +=  (sub(1e4, l.collateralRate[i])* p.collateral[_debtors_addr][l.assetSymbol[i]] / 1e4) / 2; /* 50% profit*/
+	    + profit / 2 ; /* 50% profit*/
+	  balance[owner][l.assetSymbol[i]] +=  profit / 2; /* 50% profit*/
 	  /* also, remove the asssets from the pool */
 	  p.collateral[_debtors_addr][l.assetSymbol[i]] = 0;
 	  l.deposits[l.assetSymbol[i]] = 0;
