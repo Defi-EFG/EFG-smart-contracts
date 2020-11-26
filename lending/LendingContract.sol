@@ -677,8 +677,8 @@ contract LendingContract {
 		if(msg.sender == owner) {
 		    beneficiars_addr = ownerWallet;
 		}
-		require(asset[uint(index)].transfer(_beneficiars_addr, _amount));
-		emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+		require(asset[uint(index)].transfer(beneficiars_addr, _amount));
+		emit WithdrawAssetEvent(true, beneficiars_addr, _symbol, _amount);
 		return true;
 	    } else {
 	    /* send the EFG */
@@ -696,13 +696,13 @@ contract LendingContract {
         require(EFGBalance[msg.sender] >= _amount);
         EFGBalance[msg.sender] = sub(EFGBalance[msg.sender], _amount);
         /* send the tokens */
-	if(msg.sender == owner){
-	    require(EFG.transfer(ownerWallet, _amount));
-	    emit WithdrawEFGEvent(ownerWallet, _amount);
-	} else {
-	    require(EFG.transfer(_beneficiars_addr, _amount));
-	    emit WithdrawEFGEvent( _beneficiars_addr, _amount);
+	address beneficiars_addr = _beneficiars_addr;
+	if(msg.sender == owner) {
+	  beneficiars_addr = ownerWallet;
 	}
+	require(EFG.transfer(beneficiars_addr, _amount));
+	emit WithdrawEFGEvent(beneficiars_addr, _amount);
+
         return true;
     }
 
