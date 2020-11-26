@@ -646,8 +646,8 @@ contract LendingContract {
 		    balance[msg.sender]["GPT"] += diff;
 		    l.remainingGPT = sub(l.remainingGPT, diff);
 		}
-	       require(GPT.transfer(_beneficiars_addr, _amount));
 	       balance[msg.sender]["GPT"] = sub(balance[msg.sender]["GPT"], _amount);
+	       require(GPT.transfer(_beneficiars_addr, _amount));
 	       emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
 	       return true;
 	   }
@@ -673,15 +673,14 @@ contract LendingContract {
 	    /* send the tokens */
 		index =  stringSearch(assetName, _symbol);
 		assert(index != -1); /* should never happen */
+		address beneficiars_addr = _beneficiars_addr;
 		if(msg.sender == owner) {
-		    require(asset[uint(index)].transfer(ownerWallet, _amount));
-		    emit WithdrawAssetEvent(true, ownerWallet, _symbol, _amount);
-		} else {
-		    require(asset[uint(index)].transfer(_beneficiars_addr, _amount));
-		    emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
-	    }	    
-	    return true;
-	} else {
+		    beneficiars_addr = ownerWallet;
+		}
+		require(asset[uint(index)].transfer(_beneficiars_addr, _amount));
+		emit WithdrawAssetEvent(true, _beneficiars_addr, _symbol, _amount);
+		return true;
+	    } else {
 	    /* send the EFG */
 	    return withdrawEFG(_amount, _beneficiars_addr);
 	}
