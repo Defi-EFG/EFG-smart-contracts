@@ -752,10 +752,10 @@ contract LendingContract {
         /* check if debt exists*/
         Loan storage l = debt[_debtors_addr];
 	/* each loan has right for a single grace period only */
-	if (l.protectionUsed == true) {
+	if ((l.protectionUsed == true) || (l.remainingGPT == 0)) {
 	    return false;
 	}
-	
+
         /* check if GPT is enough to activate the grace period */
 	uint256 protectedValue = computeCollateralValue(_debtors_addr);
 	uint256 totalDebt;
@@ -765,9 +765,6 @@ contract LendingContract {
 	    protectedValue = totalDebt;
 	}
 	
-	if (l.remainingGPT == 0) {
-	    return false;
-	}
 	uint256 GPTRate = computeEFGRate(USDTRates["GPT"], USDTRates["EFG"]);
         if (protectedValue * periodRate / 1e2 > l.remainingGPT *1e4 * GPTRate / 1e6){
 	    return false;
@@ -783,9 +780,8 @@ contract LendingContract {
 	if (l.remainingGPT < consumedGPT) { /* reduntant check */
 	    return false;
 	}
-    
-    l.protectionUsed = true;	
 	l.remainingGPT = sub(l.remainingGPT, consumedGPT);
+	l.protectionUsed = true;
 	l.lastGracePeriod = block.timestamp + secsIn7Hours;
 
 	balance[owner]["GPT"] += consumedGPT;
@@ -813,8 +809,8 @@ contract LendingContract {
             emit WithdrawGPTEvent(false, msg.sender, requestedAmount);
             return false;
         } else {
-            emit WithdrawGPTEvent(true, msg.sender, requestedAmount);
 	    balance[owner]["GPT"] = sub(balance[owner]["GPT"], requestedAmount);
+	    emit WithdrawGPTEvent(true, msg.sender, requestedAmount);
             return true;
         }
     }
